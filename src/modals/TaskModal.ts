@@ -17,13 +17,14 @@ export class TaskModal extends Modal {
     task: Task | null,
     private parentId: string | null,
     private onSave: (task: Task) => Promise<void>,
+    defaults?: Partial<Task>,
   ) {
     super(app);
     if (task) {
       this.task = JSON.parse(JSON.stringify(task));
       this.isNew = false;
     } else {
-      this.task = makeTask({ status: 'todo', priority: 'medium' });
+      this.task = makeTask({ status: 'todo', priority: 'medium', ...defaults });
       this.isNew = true;
     }
   }

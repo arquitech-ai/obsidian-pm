@@ -12,6 +12,7 @@ import { ProjectModal } from '../modals/ProjectModal';
 export interface OpenTaskModalOpts {
   task?: Task | null;
   parentId?: string | null;
+  defaults?: Partial<Task>;
   onSave: (task: Task) => Promise<void>;
 }
 
@@ -27,6 +28,7 @@ export function openTaskModal(
     opts.task ?? null,
     opts.parentId ?? null,
     opts.onSave,
+    opts.defaults,
   ).open();
 }
 

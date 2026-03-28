@@ -1,5 +1,5 @@
 import type PMPlugin from '../main';
-import { Project, Task, TaskStatus, makeTask } from '../types';
+import { Project, Task, TaskStatus } from '../types';
 import { flattenTasks, totalLoggedHours } from '../store/TaskTreeOps';
 import { stringToColor, formatDateShort, isTaskOverdue } from '../utils';
 import { openTaskModal } from '../ui/ModalFactory';
@@ -102,8 +102,7 @@ export class KanbanView implements SubView {
     });
     addBtn.style.setProperty('--col-color', status.color);
     addBtn.addEventListener('click', async () => {
-      const task = makeTask({ status: status.id as TaskStatus });
-      openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
+      openTaskModal(this.plugin, this.project, { defaults: { status: status.id as TaskStatus }, onSave: async () => { await this.onRefresh(); } });
     });
   }
 
