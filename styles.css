@@ -1390,6 +1390,15 @@
   border-color: rgba(168,85,247,0.4);
   color: #a855f7;
 }
+.pm-prop-type-btn--subtask {
+  background: rgba(34,197,94,0.15);
+  border-color: rgba(34,197,94,0.4);
+  color: #16a34a;
+}
+.pm-prop-type-btn--active {
+  box-shadow: 0 0 0 2px var(--pm-accent);
+}
+.pm-prop-type-selector { gap: 6px; }
 
 /* ── Recurrence picker ─────────────────────────────────────────────────── */
 .pm-prop-recurrence { flex-wrap: wrap; gap: 6px; }
@@ -1519,4 +1528,133 @@
 .pm-modal-header {
   background: var(--background-primary);
   border-bottom-color: var(--pm-border, var(--background-modifier-border));
+}
+
+/* ── Task badges (replace emojis) ────────────────────────────────────── */
+.pm-task-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.pm-task-badge--milestone {
+  background: rgba(168,85,247,0.15);
+  color: #a855f7;
+  border: 1px solid rgba(168,85,247,0.3);
+}
+.pm-task-badge--recurrence {
+  background: rgba(59,130,246,0.15);
+  color: #3b82f6;
+  border: 1px solid rgba(59,130,246,0.3);
+}
+.pm-task-badge--subtask {
+  background: rgba(34,197,94,0.15);
+  color: #16a34a;
+  border: 1px solid rgba(34,197,94,0.3);
+  width: auto;
+  padding: 1px 5px;
+}
+
+/* ── Collapsible properties toggle ───────────────────────────────────── */
+.pm-modal-props-container {
+  padding: 0 24px;
+}
+.pm-props-toggle-btn {
+  all: unset;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pm-text-muted);
+  padding: 8px 0;
+  display: block;
+  width: 100%;
+  transition: color 0.15s;
+}
+.pm-props-toggle-btn:hover { color: var(--pm-text); }
+.pm-modal-props--collapsed {
+  display: none !important;
+}
+.pm-modal-desc-section {
+  border-top: none;
+}
+.pm-modal-desc-preview {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: var(--pm-bg2);
+  border-radius: var(--pm-radius-sm);
+  border: 1px solid var(--pm-border);
+  font-size: 13px;
+  min-height: 20px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.pm-modal-desc-preview:empty { display: none; }
+.pm-modal-desc-preview a { color: var(--pm-accent); text-decoration: underline; }
+
+/* ── Gantt add task button ───────────────────────────────────────────── */
+.pm-gantt-add-task-btn {
+  all: unset;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--pm-text-muted);
+  padding: 4px 8px;
+  border-radius: var(--pm-radius-sm);
+  transition: all 0.15s;
+}
+.pm-gantt-add-task-btn:hover { background: var(--pm-bg3); color: var(--pm-accent); }
+
+/* ── Gantt label drag reorder ────────────────────────────────────────── */
+.pm-gantt-label-row--dragging { opacity: 0.4; }
+.pm-gantt-label-row--drop-target {
+  background: var(--pm-accent-light) !important;
+  box-shadow: inset 0 -2px 0 var(--pm-accent);
+}
+
+/* ── Gantt label "+" subtask button ──────────────────────────────────── */
+.pm-gantt-label-add-btn {
+  all: unset;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pm-text-muted);
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+.pm-gantt-label-row:hover .pm-gantt-label-add-btn { opacity: 1; }
+.pm-gantt-label-add-btn:hover { background: var(--pm-bg3); color: var(--pm-accent); }
+
+/* ── Gantt baseline overlay ──────────────────────────────────────────── */
+.pm-gantt-baseline-bar {
+  fill: rgba(255, 255, 255, 0.15);
+  stroke: rgba(255, 255, 255, 0.3);
+  stroke-width: 1;
+  pointer-events: auto;
+}
+.theme-light .pm-gantt-baseline-bar {
+  fill: rgba(0, 0, 0, 0.08);
+  stroke: rgba(0, 0, 0, 0.15);
+}
+.pm-gantt-baseline-select {
+  padding: 3px 8px;
+  border: 1px solid var(--pm-border);
+  border-radius: var(--pm-radius-sm);
+  background: var(--pm-bg2);
+  color: var(--pm-text);
+  font-size: 12px;
+  cursor: pointer;
 }

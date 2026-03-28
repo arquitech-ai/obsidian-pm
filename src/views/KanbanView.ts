@@ -124,15 +124,16 @@ export class KanbanView implements SubView {
     // Title + type badges
     const titleRow = body.createDiv('pm-kanban-card-title-row');
     const titleEl = titleRow.createEl('span', { text: task.title, cls: 'pm-kanban-card-title' });
-    if (task.type === 'milestone') titleRow.createEl('span', { text: '💎', cls: 'pm-task-icon', attr: { title: 'Milestone' } });
-    if (task.recurrence) titleRow.createEl('span', { text: '🔁', cls: 'pm-task-icon', attr: { title: 'Recurring' } });
+    if (task.type === 'milestone') titleRow.createEl('span', { text: 'M', cls: 'pm-task-badge pm-task-badge--milestone', attr: { title: 'Milestone' } });
+    if (task.type === 'subtask') titleRow.createEl('span', { text: 'Sub', cls: 'pm-task-badge pm-task-badge--subtask', attr: { title: 'Subtask' } });
+    if (task.recurrence) titleRow.createEl('span', { text: 'R', cls: 'pm-task-badge pm-task-badge--recurrence', attr: { title: 'Recurring' } });
 
     // Time badge
     const logged = totalLoggedHours(task);
     const est = task.timeEstimate ?? 0;
     if (logged > 0 || est > 0) {
       const timeBadge = body.createEl('span', { cls: 'pm-time-chip pm-time-chip--sm' });
-      timeBadge.setText(est > 0 ? `⏱ ${logged}/${est}h` : `⏱ ${logged}h`);
+      timeBadge.setText(est > 0 ? `${logged}/${est}h` : `${logged}h`);
       if (est > 0 && logged > est) timeBadge.addClass('pm-time-chip--over');
     }
 
@@ -161,7 +162,7 @@ export class KanbanView implements SubView {
       const dueDate = new Date(task.due);
       const isOverdue = dueDate < today && task.status !== 'done';
       const chip = footer.createEl('span', {
-        text: `📅 ${this.formatDate(task.due)}`,
+        text: this.formatDate(task.due),
         cls: 'pm-kanban-due',
       });
       if (isOverdue) chip.addClass('pm-kanban-due--overdue');
@@ -178,7 +179,7 @@ export class KanbanView implements SubView {
     // Subtask count
     if (task.subtasks.length) {
       const sub = body.createEl('span', {
-        text: `◫ ${task.subtasks.filter(s => s.status === 'done').length}/${task.subtasks.length}`,
+        text: `${task.subtasks.filter(s => s.status === 'done').length}/${task.subtasks.length} subtasks`,
         cls: 'pm-kanban-card-subtasks',
       });
     }

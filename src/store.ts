@@ -1,24 +1,33 @@
-import { App, TFile, TFolder, normalizePath, parseYaml } from 'obsidian';
+import { App, TFile, TFolder, normalizePath } from 'obsidian';
 import {
   Project,
   Task,
   CustomFieldDef,
   SavedView,
+  Baseline,
+  BaselineTaskSnapshot,
   makeProject,
   makeTask,
   updateTaskInTree,
   deleteTaskFromTree,
   addTaskToTree,
+  findTask,
+  flattenTasks,
 } from './types';
 import { sanitizeFileName } from './utils';
 
 const FRONTMATTER_KEY = 'pm-project';
+const TASK_FRONTMATTER_KEY = 'pm-task';
 
 /**
  * Handles all read/write operations against the Obsidian vault.
- * Each project lives in a single .md file. The YAML frontmatter
- * contains the full structured data; the markdown body is used for
- * free-form project notes.
+ *
+ * Storage layout:
+ *   Projects/<ProjectName>.md         — project metadata (no task data)
+ *   Projects/<ProjectName>/<slug>.md  — one .md per task
+ *
+ * The in-memory Project.tasks tree is assembled on load from individual
+ * task files and remains unchanged for views.
  */
 export class ProjectStore {
   constructor(private app: App) {}
@@ -32,17 +41,33 @@ export class ProjectStore {
     }
   }
 
+  /** Get the task subfolder path for a project */
+  private projectTaskFolder(project: Project): string {
+    // e.g. "Projects/MyProject.md" → "Projects/MyProject"
+    return project.filePath.replace(/\.md$/, '');
+  }
+
   // ─── Load ──────────────────────────────────────────────────────────────────
 
   async loadAllProjects(folder: string): Promise<Project[]> {
     await this.ensureFolder(folder);
     const projects: Project[] = [];
-    const files = this.app.vault.getMarkdownFiles().filter(f => f.path.startsWith(folder + '/'));
+    const files = this.app.vault.getMarkdownFiles().filter(f =>
+      f.path.startsWith(folder + '/') && !this.isTaskFile(f),
+    );
     for (const file of files) {
       const project = await this.loadProject(file);
       if (project) projects.push(project);
     }
     return projects.sort((a, b) => a.title.localeCompare(b.title));
+  }
+
+  /** Check if a file path looks like it's inside a project subfolder (task file) */
+  private isTaskFile(file: TFile): boolean {
+    // Task files are in a subfolder matching a project name.
+    // We check by path depth: Projects/Foo.md = project, Projects/Foo/bar.md = task
+    const parts = file.path.split('/');
+    return parts.length >= 3 && !file.path.endsWith('.md.md');
   }
 
   async loadProject(file: TFile): Promise<Project | null> {
@@ -51,21 +76,133 @@ export class ProjectStore {
       const { frontmatter, body } = this.parseFrontmatter(content);
       if (!frontmatter || frontmatter[FRONTMATTER_KEY] !== true) return null;
 
+      // Check if this is old format (tasks embedded in frontmatter)
+      const hasEmbeddedTasks = Array.isArray(frontmatter.tasks) && frontmatter.tasks.length > 0;
+
       const project: Project = {
         id: (frontmatter.id as string) ?? file.basename,
         title: (frontmatter.title as string) ?? file.basename,
         description: (frontmatter.description as string) ?? body.trim(),
         color: (frontmatter.color as string) ?? '#6366f1',
         icon: (frontmatter.icon as string) ?? '📋',
-        tasks: this.hydrateTasks((frontmatter.tasks as unknown[]) ?? []),
+        tasks: [],
         customFields: (frontmatter.customFields as CustomFieldDef[]) ?? [],
         teamMembers: (frontmatter.teamMembers as string[]) ?? [],
         createdAt: (frontmatter.createdAt as string) ?? new Date().toISOString(),
         updatedAt: (frontmatter.updatedAt as string) ?? new Date().toISOString(),
         filePath: file.path,
         savedViews: this.hydrateSavedViews((frontmatter.savedViews as unknown[]) ?? []),
+        baselines: this.hydrateBaselines((frontmatter.baselines as unknown[]) ?? []),
       };
+
+      if (hasEmbeddedTasks) {
+        // Old format: load tasks from embedded YAML
+        project.tasks = this.hydrateTasks((frontmatter.tasks as unknown[]) ?? []);
+      } else {
+        // New format: load tasks from individual .md files in project subfolder
+        const taskFolder = this.projectTaskFolder(project);
+        const taskIds = Array.isArray(frontmatter.taskIds) ? frontmatter.taskIds as string[] : [];
+        project.tasks = await this.loadTasksFromFolder(taskFolder, taskIds);
+      }
+
       return project;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Load all task .md files from a folder and rebuild the tree */
+  private async loadTasksFromFolder(folderPath: string, topLevelIds: string[]): Promise<Task[]> {
+    const folder = this.app.vault.getAbstractFileByPath(folderPath);
+    if (!(folder instanceof TFolder)) return [];
+
+    // Load all task files
+    const taskMap = new Map<string, Task>();
+    const childrenOf = new Map<string, string[]>(); // parentId -> subtaskIds[]
+
+    const files = this.app.vault.getMarkdownFiles().filter(f => f.path.startsWith(folderPath + '/'));
+    for (const file of files) {
+      const task = await this.loadTaskFile(file);
+      if (task) {
+        taskMap.set(task.id, task);
+      }
+    }
+
+    // Build tree from parentId/subtaskIds references
+    for (const task of taskMap.values()) {
+      // Rebuild subtasks array from subtaskIds stored in frontmatter
+      const subtaskIds = (task as unknown as { _subtaskIds?: string[] })._subtaskIds ?? [];
+      task.subtasks = [];
+      for (const sid of subtaskIds) {
+        const sub = taskMap.get(sid);
+        if (sub) task.subtasks.push(sub);
+      }
+      delete (task as unknown as { _subtaskIds?: string[] })._subtaskIds;
+    }
+
+    // Return top-level tasks in order
+    const result: Task[] = [];
+    for (const id of topLevelIds) {
+      const task = taskMap.get(id);
+      if (task) result.push(task);
+    }
+    // Also include any tasks not in topLevelIds (orphans)
+    for (const task of taskMap.values()) {
+      if (!topLevelIds.includes(task.id)) {
+        const isChild = [...taskMap.values()].some(t =>
+          t.subtasks.some(s => s.id === task.id),
+        );
+        if (!isChild) result.push(task);
+      }
+    }
+
+    return result;
+  }
+
+  /** Load a single task from its .md file */
+  async loadTaskFile(file: TFile): Promise<Task | null> {
+    try {
+      const content = await this.app.vault.read(file);
+      const { frontmatter, body } = this.parseFrontmatter(content);
+      if (!frontmatter || frontmatter[TASK_FRONTMATTER_KEY] !== true) return null;
+
+      const task = makeTask({
+        id: frontmatter.id as string,
+        title: (frontmatter.title as string) ?? 'Untitled',
+        description: body.trim(),
+        type: (frontmatter.type as string) === 'milestone' ? 'milestone'
+            : (frontmatter.type as string) === 'subtask' ? 'subtask' as Task['type']
+            : 'task',
+        status: (frontmatter.status as Task['status']) ?? 'todo',
+        priority: (frontmatter.priority as Task['priority']) ?? 'medium',
+        start: (frontmatter.start as string) ?? '',
+        due: (frontmatter.due as string) ?? '',
+        progress: typeof frontmatter.progress === 'number' ? frontmatter.progress : 0,
+        assignees: Array.isArray(frontmatter.assignees) ? frontmatter.assignees : [],
+        tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : [],
+        subtasks: [], // rebuilt after all files loaded
+        dependencies: Array.isArray(frontmatter.dependencies) ? frontmatter.dependencies : [],
+        recurrence: frontmatter.recurrence && typeof frontmatter.recurrence === 'object'
+          ? frontmatter.recurrence as Task['recurrence']
+          : undefined,
+        timeEstimate: typeof frontmatter.timeEstimate === 'number' ? frontmatter.timeEstimate : undefined,
+        timeLogs: Array.isArray(frontmatter.timeLogs)
+          ? (frontmatter.timeLogs as { date: string; hours: number; note: string }[])
+          : undefined,
+        customFields: typeof frontmatter.customFields === 'object' && frontmatter.customFields !== null
+          ? frontmatter.customFields as Record<string, unknown>
+          : {},
+        collapsed: frontmatter.collapsed === true,
+        createdAt: (frontmatter.createdAt as string) ?? new Date().toISOString(),
+        updatedAt: (frontmatter.updatedAt as string) ?? new Date().toISOString(),
+        filePath: file.path,
+      });
+
+      // Store subtaskIds temporarily for tree rebuilding
+      (task as unknown as { _subtaskIds?: string[] })._subtaskIds =
+        Array.isArray(frontmatter.subtaskIds) ? frontmatter.subtaskIds : [];
+
+      return task;
     } catch {
       return null;
     }
@@ -93,6 +230,28 @@ export class ProjectStore {
     });
   }
 
+  private hydrateBaselines(raw: unknown[]): Baseline[] {
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(r => r && typeof r === 'object').map(r => {
+      const b = r as Record<string, unknown>;
+      const tasks = Array.isArray(b.tasks) ? (b.tasks as Record<string, unknown>[]).map(t => ({
+        taskId: (t.taskId as string) ?? '',
+        title: (t.title as string) ?? '',
+        start: (t.start as string) ?? '',
+        due: (t.due as string) ?? '',
+        progress: typeof t.progress === 'number' ? t.progress : 0,
+        status: (t.status as BaselineTaskSnapshot['status']) ?? 'todo',
+      })) : [];
+      return {
+        id: (b.id as string) ?? '',
+        name: (b.name as string) ?? 'Untitled',
+        createdAt: (b.createdAt as string) ?? new Date().toISOString(),
+        tasks,
+      };
+    });
+  }
+
+  // Keep for migration compatibility
   private hydrateTasks(raw: unknown[]): Task[] {
     if (!Array.isArray(raw)) return [];
     return raw.map(r => this.hydrateTask(r as Record<string, unknown>));
@@ -103,7 +262,7 @@ export class ProjectStore {
       id: r.id as string,
       title: r.title as string ?? 'Untitled',
       description: r.description as string ?? '',
-      type: (r.type as string) === 'milestone' ? 'milestone' : 'task',
+      type: (r.type as string) === 'milestone' ? 'milestone' : (r.type as string) === 'subtask' ? 'subtask' : 'task',
       status: r.status as Task['status'] ?? 'todo',
       priority: r.priority as Task['priority'] ?? 'medium',
       start: r.start as string ?? '',
@@ -133,8 +292,17 @@ export class ProjectStore {
 
   async saveProject(project: Project): Promise<void> {
     project.updatedAt = new Date().toISOString();
-    const file = this.app.vault.getAbstractFileByPath(project.filePath);
+
+    // Ensure task subfolder exists
+    const taskFolder = this.projectTaskFolder(project);
+    await this.ensureFolder(taskFolder);
+
+    // Save all task files
+    await this.saveAllTasks(project.tasks, project.id, null, taskFolder);
+
+    // Save project metadata (no task data in frontmatter)
     const content = this.serializeProject(project);
+    const file = this.app.vault.getAbstractFileByPath(project.filePath);
     if (file instanceof TFile) {
       await this.app.vault.modify(file, content);
     } else {
@@ -142,9 +310,76 @@ export class ProjectStore {
     }
   }
 
+  /** Recursively save all tasks as individual .md files */
+  private async saveAllTasks(tasks: Task[], projectId: string, parentId: string | null, folder: string): Promise<void> {
+    for (const task of tasks) {
+      await this.saveTaskFile(task, projectId, parentId, task.subtasks.map(s => s.id), folder);
+      if (task.subtasks.length) {
+        await this.saveAllTasks(task.subtasks, projectId, task.id, folder);
+      }
+    }
+  }
+
+  /** Save a single task to its .md file */
+  async saveTaskFile(task: Task, projectId: string, parentId: string | null, subtaskIds: string[], folder: string): Promise<void> {
+    const slug = sanitizeFileName(task.title).toLowerCase().replace(/\s+/g, '-').slice(0, 40);
+    const fileName = `${slug}-${task.id.slice(0, 8)}.md`;
+    const filePath = normalizePath(`${folder}/${fileName}`);
+
+    // If task already has a filePath and it differs, delete old file
+    if (task.filePath && task.filePath !== filePath) {
+      const oldFile = this.app.vault.getAbstractFileByPath(task.filePath);
+      if (oldFile instanceof TFile) {
+        await this.app.vault.delete(oldFile);
+      }
+    }
+    task.filePath = filePath;
+
+    const fm: Record<string, unknown> = {
+      [TASK_FRONTMATTER_KEY]: true,
+      projectId,
+      parentId: parentId ?? null,
+      id: task.id,
+      title: task.title,
+      type: task.type,
+      status: task.status,
+      priority: task.priority,
+      start: task.start,
+      due: task.due,
+      progress: task.progress,
+      assignees: task.assignees,
+      tags: task.tags,
+      subtaskIds,
+      dependencies: task.dependencies,
+      collapsed: task.collapsed,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+    };
+    if (task.recurrence) fm.recurrence = task.recurrence;
+    if (task.timeEstimate !== undefined) fm.timeEstimate = task.timeEstimate;
+    if (task.timeLogs?.length) fm.timeLogs = task.timeLogs;
+    if (Object.keys(task.customFields).length) fm.customFields = task.customFields;
+
+    const yamlLines: string[] = ['---'];
+    this.appendYaml(yamlLines, fm, 0);
+    yamlLines.push('---');
+    yamlLines.push('');
+    if (task.description) {
+      yamlLines.push(task.description);
+    }
+
+    const content = yamlLines.join('\n');
+    const existing = this.app.vault.getAbstractFileByPath(filePath);
+    if (existing instanceof TFile) {
+      await this.app.vault.modify(existing, content);
+    } else {
+      await this.app.vault.create(filePath, content);
+    }
+  }
+
   private serializeProject(project: Project): string {
-    // Serialize tasks recursively to plain objects
-    const tasks = this.serializeTasks(project.tasks);
+    // Collect top-level task IDs
+    const taskIds = project.tasks.map(t => t.id);
 
     const fm: Record<string, unknown> = {
       [FRONTMATTER_KEY]: true,
@@ -153,10 +388,11 @@ export class ProjectStore {
       description: project.description,
       color: project.color,
       icon: project.icon,
-      tasks,
+      taskIds,
       customFields: project.customFields,
       teamMembers: project.teamMembers,
       savedViews: project.savedViews.length ? project.savedViews : [],
+      baselines: project.baselines?.length ? project.baselines : [],
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
     };
@@ -178,42 +414,14 @@ export class ProjectStore {
     return yamlLines.join('\n');
   }
 
-  private serializeTasks(tasks: Task[]): Record<string, unknown>[] {
-    return tasks.map(t => {
-      const obj: Record<string, unknown> = {
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        type: t.type,
-        status: t.status,
-        priority: t.priority,
-        start: t.start,
-        due: t.due,
-        progress: t.progress,
-        assignees: t.assignees,
-        tags: t.tags,
-        subtasks: this.serializeTasks(t.subtasks),
-        dependencies: t.dependencies,
-        customFields: t.customFields,
-        collapsed: t.collapsed,
-        createdAt: t.createdAt,
-        updatedAt: t.updatedAt,
-      };
-      if (t.recurrence) obj.recurrence = t.recurrence;
-      if (t.timeEstimate !== undefined) obj.timeEstimate = t.timeEstimate;
-      if (t.timeLogs?.length) obj.timeLogs = t.timeLogs;
-      return obj;
-    });
-  }
-
   private appendMarkdownTasks(lines: string[], tasks: Task[], depth: number): void {
     const indent = '  '.repeat(depth);
     for (const t of tasks) {
       const check = t.status === 'done' ? 'x' : t.status === 'cancelled' ? '-' : ' ';
-      const milestone = t.type === 'milestone' ? ' 💎' : '';
-      const recur = t.recurrence ? ' 🔁' : '';
-      const due = t.due ? ` 📅 ${t.due}` : '';
-      const assignees = t.assignees.length ? ` 👤 ${t.assignees.join(', ')}` : '';
+      const milestone = t.type === 'milestone' ? ' [milestone]' : '';
+      const recur = t.recurrence ? ' [recurring]' : '';
+      const due = t.due ? ` due:${t.due}` : '';
+      const assignees = t.assignees.length ? ` @${t.assignees.join(', @')}` : '';
       lines.push(`${indent}- [${check}] ${t.title}${milestone}${recur}${due}${assignees}`);
       if (t.subtasks.length) this.appendMarkdownTasks(lines, t.subtasks, depth + 1);
     }
@@ -268,6 +476,7 @@ export class ProjectStore {
     const safeName = title.replace(/[\\/:*?"<>|]/g, '-');
     const filePath = normalizePath(`${folder}/${safeName}.md`);
     const project = makeProject(title, filePath);
+    await this.ensureFolder(this.projectTaskFolder(project));
     await this.saveProject(project);
     return project;
   }
@@ -285,18 +494,47 @@ export class ProjectStore {
   }
 
   async deleteTask(project: Project, taskId: string): Promise<void> {
+    // Delete task file(s) recursively
+    const task = findTask(project.tasks, taskId);
+    if (task) {
+      await this.deleteTaskFiles(task, this.projectTaskFolder(project));
+    }
     deleteTaskFromTree(project.tasks, taskId);
     await this.saveProject(project);
   }
 
+  /** Recursively delete task .md files */
+  private async deleteTaskFiles(task: Task, folder: string): Promise<void> {
+    // Delete subtask files first
+    for (const sub of task.subtasks) {
+      await this.deleteTaskFiles(sub, folder);
+    }
+    // Delete this task's file
+    if (task.filePath) {
+      const file = this.app.vault.getAbstractFileByPath(task.filePath);
+      if (file instanceof TFile) await this.app.vault.delete(file);
+    }
+  }
+
   async deleteProject(project: Project): Promise<void> {
+    // Delete task subfolder
+    const taskFolder = this.projectTaskFolder(project);
+    const folder = this.app.vault.getAbstractFileByPath(taskFolder);
+    if (folder instanceof TFolder) {
+      // Delete all files in folder first
+      for (const child of folder.children) {
+        if (child instanceof TFile) await this.app.vault.delete(child);
+      }
+      await this.app.vault.delete(folder);
+    }
+    // Delete project file
     const file = this.app.vault.getAbstractFileByPath(project.filePath);
     if (file instanceof TFile) await this.app.vault.trash(file, true);
   }
 
   // ─── Frontmatter parser ────────────────────────────────────────────────────
 
-  private parseFrontmatter(content: string): {
+  parseFrontmatter(content: string): {
     frontmatter: Record<string, unknown> | null;
     body: string;
   } {
@@ -313,5 +551,18 @@ export class ProjectStore {
     } catch {
       return { frontmatter: null, body: content };
     }
+  }
+
+  // ─── Migration helpers (public for migration.ts) ──────────────────────────
+
+  /** Check if a project file uses the old embedded-tasks format */
+  isOldFormat(frontmatter: Record<string, unknown>): boolean {
+    return Array.isArray(frontmatter.tasks) && frontmatter.tasks.length > 0
+      && !Array.isArray(frontmatter.taskIds);
+  }
+
+  /** Hydrate tasks from old format (public for migration) */
+  hydrateTasksFromOldFormat(raw: unknown[]): Task[] {
+    return this.hydrateTasks(raw);
   }
 }

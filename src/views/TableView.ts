@@ -638,8 +638,9 @@ export class TableView implements SubView {
       input.addEventListener('keydown', ev => { if (ev.key === 'Enter') save(); if (ev.key === 'Escape') input.replaceWith(titleSpan); });
     });
 
-    if (task.type === 'milestone') titleCell.createEl('span', { text: '💎', cls: 'pm-task-icon', attr: { title: 'Milestone' } });
-    if (task.recurrence) titleCell.createEl('span', { text: '🔁', cls: 'pm-task-icon', attr: { title: 'Recurring' } });
+    if (task.type === 'milestone') titleCell.createEl('span', { text: 'M', cls: 'pm-task-badge pm-task-badge--milestone', attr: { title: 'Milestone' } });
+    if (task.type === 'subtask') titleCell.createEl('span', { text: 'Sub', cls: 'pm-task-badge pm-task-badge--subtask', attr: { title: 'Subtask' } });
+    if (task.recurrence) titleCell.createEl('span', { text: 'R', cls: 'pm-task-badge pm-task-badge--recurrence', attr: { title: 'Recurring' } });
 
     if (task.tags.length) {
       const tagRow = titleCell.createDiv('pm-table-tags');

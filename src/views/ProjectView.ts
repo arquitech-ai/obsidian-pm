@@ -1,6 +1,7 @@
 import { ItemView, WorkspaceLeaf, TFile, Menu } from 'obsidian';
 import type PMPlugin from '../main';
-import { Project, ViewMode } from '../types';
+import { Project, ViewMode, Baseline, BaselineTaskSnapshot, makeId, flattenTasks } from '../types';
+import { truncateTitle } from '../utils';
 import type { SubView } from './SubView';
 import { TableView } from './TableView';
 import { GanttView } from './GanttView';
@@ -34,7 +35,7 @@ export class ProjectView extends ItemView {
   }
 
   getViewType(): string { return PM_VIEW_TYPE; }
-  getDisplayText(): string { return this.project?.title ?? 'Project Manager'; }
+  getDisplayText(): string { return truncateTitle(this.project?.title ?? 'Project Manager', 20); }
   getIcon(): string { return 'layout-dashboard'; }
 
   async setState(state: ViewState, result: unknown): Promise<void> {
@@ -191,7 +192,7 @@ export class ProjectView extends ItemView {
       this.renderProjectList();
       return;
     }
-    (this.leaf as unknown as { tabHeaderEl?: { setText?: (t: string) => void } }).tabHeaderEl?.setText?.(this.project.title);
+    (this.leaf as unknown as { tabHeaderEl?: { setText?: (t: string) => void } }).tabHeaderEl?.setText?.(truncateTitle(this.project.title, 20));
     this.renderProjectToolbar();
     this.renderCurrentView();
   }
@@ -246,6 +247,33 @@ export class ProjectView extends ItemView {
       new TaskModal(this.app, this.plugin, this.project, null, null, async () => {
         await this.refreshProject();
       }).open();
+    });
+
+    // Save baseline button
+    const baselineBtn = right.createEl('button', { text: 'Save Baseline', cls: 'pm-btn pm-btn-ghost' });
+    baselineBtn.addEventListener('click', async () => {
+      if (!this.project) return;
+      const name = prompt('Baseline name:', `Baseline ${(this.project.baselines?.length ?? 0) + 1}`);
+      if (!name?.trim()) return;
+      const allTasks = flattenTasks(this.project.tasks).map(f => f.task);
+      const snapshots: BaselineTaskSnapshot[] = allTasks.map(t => ({
+        taskId: t.id,
+        title: t.title,
+        start: t.start,
+        due: t.due,
+        progress: t.progress,
+        status: t.status,
+      }));
+      const baseline: Baseline = {
+        id: makeId(),
+        name: name.trim(),
+        createdAt: new Date().toISOString(),
+        tasks: snapshots,
+      };
+      if (!this.project.baselines) this.project.baselines = [];
+      this.project.baselines.push(baseline);
+      await this.plugin.store.saveProject(this.project);
+      this.plugin.showNotice(`Baseline "${name.trim()}" saved with ${snapshots.length} tasks.`);
     });
 
     const settingsBtn = right.createEl('button', { cls: 'pm-btn pm-btn-icon', attr: { 'aria-label': 'Project settings' } });

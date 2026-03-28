@@ -5,6 +5,7 @@ import { PMSettingTab } from './settings';
 import { ProjectView, PM_VIEW_TYPE } from './views/ProjectView';
 import { ProjectModal } from './modals/ProjectModal';
 import { Notifier } from './components/Notifier';
+import { migrateProjects } from './migration';
 
 export default class PMPlugin extends Plugin {
   settings: PMSettings = { ...DEFAULT_SETTINGS };
@@ -21,7 +22,10 @@ export default class PMPlugin extends Plugin {
 
     // Open project files in the custom view
     this.registerExtensions([], 'md'); // handled via onOpenFile
-    this.app.workspace.onLayoutReady(() => {
+    this.app.workspace.onLayoutReady(async () => {
+      // Run migration for old-format projects
+      await migrateProjects(this);
+
       this.registerEvent(
         this.app.workspace.on('file-open', async (file: TFile | null) => {
           if (!file) return;
@@ -29,6 +33,18 @@ export default class PMPlugin extends Plugin {
           const fm = cache?.frontmatter;
           if (fm?.['pm-project'] === true) {
             await this.openProjectFile(file);
+          }
+          // Handle task file opens: open parent project view
+          if (fm?.['pm-task'] === true && fm?.projectId) {
+            const projectFolder = this.settings.projectsFolder;
+            const projects = await this.store.loadAllProjects(projectFolder);
+            const project = projects.find(p => p.id === fm.projectId);
+            if (project) {
+              const pFile = this.app.vault.getAbstractFileByPath(project.filePath);
+              if (pFile instanceof TFile) {
+                await this.openProjectFile(pFile);
+              }
+            }
           }
         }),
       );

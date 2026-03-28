@@ -45,6 +45,12 @@ export function isTaskDueSoon(task: Task, days: number): boolean {
   return dueDate >= today && dueDate.getTime() <= today.getTime() + days * 86400_000;
 }
 
+/** Truncate a title for display (e.g. tab header) */
+export function truncateTitle(title: string, maxLen = 20): string {
+  if (title.length <= maxLen) return title;
+  return title.slice(0, maxLen - 1) + '…';
+}
+
 /** Replace characters illegal in file names */
 export function sanitizeFileName(title: string): string {
   return title.replace(/[\\/:*?"<>|]/g, '-');

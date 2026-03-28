@@ -3,7 +3,7 @@ export type TaskPriority = 'critical' | 'high' | 'medium' | 'low';
 export type GanttGranularity = 'day' | 'week' | 'month' | 'quarter';
 export type ViewMode = 'table' | 'gantt' | 'kanban';
 export type DueDateFilter = 'any' | 'overdue' | 'this-week' | 'this-month' | 'no-date';
-export type TaskType = 'task' | 'milestone';
+export type TaskType = 'task' | 'milestone' | 'subtask';
 
 export interface Recurrence {
   interval: 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -46,6 +46,7 @@ export interface Task {
   collapsed: boolean;
   createdAt: string;
   updatedAt: string;
+  filePath?: string;   // vault path to this task's .md file
 }
 
 export interface Project {
@@ -61,6 +62,23 @@ export interface Project {
   updatedAt: string;
   filePath: string; // resolved vault path
   savedViews: SavedView[];
+  baselines: Baseline[];
+}
+
+export interface BaselineTaskSnapshot {
+  taskId: string;
+  title: string;
+  start: string;
+  due: string;
+  progress: number;
+  status: TaskStatus;
+}
+
+export interface Baseline {
+  id: string;
+  name: string;
+  createdAt: string;
+  tasks: BaselineTaskSnapshot[];
 }
 
 export interface FilterState {
@@ -149,7 +167,7 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     type: 'task',
     status: 'todo',
     priority: 'medium',
-    start: '',
+    start: new Date().toISOString().slice(0, 10),
     due: '',
     progress: 0,
     assignees: [],
@@ -179,6 +197,7 @@ export function makeProject(title: string, filePath: string): Project {
     updatedAt: now,
     filePath,
     savedViews: [],
+    baselines: [],
   };
 }
 
@@ -263,6 +282,29 @@ export function addTaskToTree(tasks: Task[], newTask: Task, parentId: string | n
   const parent = findTask(tasks, parentId);
   if (parent) parent.subtasks.push(newTask);
   else tasks.push(newTask);
+}
+
+/** Move a task before or after another task in the tree (same level) */
+export function moveTaskInTree(
+  tasks: Task[],
+  taskId: string,
+  targetId: string,
+  position: 'before' | 'after',
+): boolean {
+  // Try at this level first
+  const taskIdx = tasks.findIndex(t => t.id === taskId);
+  const targetIdx = tasks.findIndex(t => t.id === targetId);
+  if (taskIdx !== -1 && targetIdx !== -1) {
+    const [task] = tasks.splice(taskIdx, 1);
+    const insertIdx = tasks.findIndex(t => t.id === targetId);
+    tasks.splice(position === 'before' ? insertIdx : insertIdx + 1, 0, task);
+    return true;
+  }
+  // Recurse into subtasks
+  for (const t of tasks) {
+    if (moveTaskInTree(t.subtasks, taskId, targetId, position)) return true;
+  }
+  return false;
 }
 
 /** Sum all logged hours for a task */

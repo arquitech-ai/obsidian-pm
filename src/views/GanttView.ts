@@ -1,5 +1,5 @@
 import type PMPlugin from '../main';
-import { Project, Task, GanttGranularity, flattenTasks, FlatTask } from '../types';
+import { Project, Task, GanttGranularity, flattenTasks, FlatTask, makeTask, moveTaskInTree, Baseline } from '../types';
 import { TaskModal } from '../modals/TaskModal';
 import type { SubView } from './SubView';
 
@@ -43,6 +43,7 @@ export class GanttView implements SubView {
   private dragInitialX = 0;
   private dragInitialW = 0;
   private dragMoved = false;
+  private activeBaseline: Baseline | null = null;
 
   constructor(
     private container: HTMLElement,
@@ -88,18 +89,32 @@ export class GanttView implements SubView {
 
     // "Today" jump button
     const sep = bar.createEl('span', { cls: 'pm-gantt-sep' });
-    const todayBtn = bar.createEl('button', { text: '⊙ Today', cls: 'pm-btn pm-btn-ghost pm-gantt-today-btn' });
+    const todayBtn = bar.createEl('button', { text: 'Today', cls: 'pm-btn pm-btn-ghost pm-gantt-today-btn' });
     todayBtn.addEventListener('click', () => this.scrollToToday());
 
     // "Expand all / Collapse all"
-    const expBtn = bar.createEl('button', { text: '⊞ Expand All', cls: 'pm-btn pm-btn-ghost' });
+    const expBtn = bar.createEl('button', { text: 'Expand All', cls: 'pm-btn pm-btn-ghost' });
     expBtn.addEventListener('click', async () => {
       await this.setAllCollapsed(false);
     });
-    const colBtn = bar.createEl('button', { text: '⊟ Collapse All', cls: 'pm-btn pm-btn-ghost' });
+    const colBtn = bar.createEl('button', { text: 'Collapse All', cls: 'pm-btn pm-btn-ghost' });
     colBtn.addEventListener('click', async () => {
       await this.setAllCollapsed(true);
     });
+
+    // Baseline selector
+    if (this.project.baselines?.length) {
+      const blSel = bar.createEl('select', { cls: 'pm-gantt-baseline-select' });
+      blSel.createEl('option', { value: '', text: 'No Baseline' });
+      for (const bl of this.project.baselines) {
+        const opt = blSel.createEl('option', { value: bl.id, text: bl.name });
+        if (this.activeBaseline?.id === bl.id) opt.selected = true;
+      }
+      blSel.addEventListener('change', () => {
+        this.activeBaseline = this.project.baselines.find(b => b.id === blSel.value) ?? null;
+        this.render();
+      });
+    }
   }
 
   // ─── Timeline config ───────────────────────────────────────────────────────
@@ -184,10 +199,47 @@ export class GanttView implements SubView {
     this.renderTaskRows(leftBody, totalRows);
     this.renderDependencyArrows();
     this.renderMilestoneLabels();
+    this.renderBaselineOverlay();
+
+    // Click-to-create on empty SVG background
+    this.svgEl.addEventListener('click', async (e: MouseEvent) => {
+      const target = e.target as SVGElement;
+      // Only handle clicks on background elements (grid, weekend shading, row hover)
+      if (target.closest('.pm-gantt-bar-group, .pm-gantt-milestone, .pm-gantt-drag-handle')) return;
+      if (target.classList.contains('pm-gantt-bar') || target.classList.contains('pm-gantt-milestone')) return;
+
+      const rect = this.svgEl.getBoundingClientRect();
+      const svgX = e.clientX - rect.left + this.scrollEl.scrollLeft;
+      const svgY = e.clientY - rect.top;
+
+      // Ignore clicks on header area
+      if (svgY < HEADER_HEIGHT) return;
+
+      const clickDate = this.xToDate(svgX);
+      const dueDate = new Date(clickDate.getTime() + 7 * DAY_MS);
+      const newTask = makeTask({
+        start: this.dateToIso(clickDate),
+        due: this.dateToIso(dueDate),
+      });
+
+      new TaskModal(this.plugin.app, this.plugin, this.project, newTask, null, async () => {
+        await this.onRefresh();
+      }).open();
+    });
 
     // Sync vertical scroll between left and right
     rightPanel.addEventListener('scroll', () => {
       leftBody.scrollTop = rightPanel.scrollTop;
+    });
+
+    // Add bottom "+" button for top-level task
+    const addRow = leftBody.createDiv('pm-gantt-label-row pm-gantt-add-row');
+    addRow.style.height = `${ROW_HEIGHT}px`;
+    const addBtn = addRow.createEl('button', { text: '+ Add Task', cls: 'pm-gantt-add-task-btn' });
+    addBtn.addEventListener('click', async () => {
+      new TaskModal(this.plugin.app, this.plugin, this.project, null, null, async () => {
+        await this.onRefresh();
+      }).open();
     });
 
     // Scroll to today on initial render
@@ -495,6 +547,33 @@ export class GanttView implements SubView {
     const el = container.createDiv('pm-gantt-label-row');
     el.style.height = `${ROW_HEIGHT}px`;
     el.style.paddingLeft = `${depth * 18 + 8}px`;
+    el.dataset.taskId = task.id;
+
+    // Make draggable for reordering
+    el.draggable = true;
+    el.addEventListener('dragstart', (e: DragEvent) => {
+      e.dataTransfer?.setData('text/plain', task.id);
+      el.addClass('pm-gantt-label-row--dragging');
+    });
+    el.addEventListener('dragend', () => {
+      el.removeClass('pm-gantt-label-row--dragging');
+    });
+    el.addEventListener('dragover', (e: DragEvent) => {
+      e.preventDefault();
+      el.addClass('pm-gantt-label-row--drop-target');
+    });
+    el.addEventListener('dragleave', () => {
+      el.removeClass('pm-gantt-label-row--drop-target');
+    });
+    el.addEventListener('drop', async (e: DragEvent) => {
+      e.preventDefault();
+      el.removeClass('pm-gantt-label-row--drop-target');
+      const draggedId = e.dataTransfer?.getData('text/plain');
+      if (!draggedId || draggedId === task.id) return;
+      moveTaskInTree(this.project.tasks, draggedId, task.id, 'before');
+      await this.plugin.store.saveProject(this.project);
+      await this.onRefresh();
+    });
 
     // Expand button
     if (task.subtasks.length > 0) {
@@ -527,6 +606,16 @@ export class GanttView implements SubView {
     if (task.progress > 0) {
       el.createEl('span', { text: `${task.progress}%`, cls: 'pm-gantt-label-progress' });
     }
+
+    // "+" button to add subtask (hover-visible)
+    const addSubBtn = el.createEl('button', { text: '+', cls: 'pm-gantt-label-add-btn' });
+    addSubBtn.title = 'Add subtask';
+    addSubBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      new TaskModal(this.plugin.app, this.plugin, this.project, null, task.id, async () => {
+        await this.onRefresh();
+      }).open();
+    });
   }
 
   private renderTaskBar(g: SVGGElement, task: Task, row: number, depth: number): void {
@@ -640,7 +729,7 @@ export class GanttView implements SubView {
     if (task.recurrence) {
       const icon = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       icon.setAttribute('x', String(x + width + 4)); icon.setAttribute('y', String(y + height / 2 + 5));
-      icon.setAttribute('class', 'pm-gantt-bar-icon'); icon.textContent = '🔁';
+      icon.setAttribute('class', 'pm-gantt-bar-icon'); icon.textContent = 'R';
       barGroup.appendChild(icon);
     }
 
@@ -785,7 +874,7 @@ export class GanttView implements SubView {
 
     // Tooltip
     const tt = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-    tt.textContent = `💎 ${task.title}\nDate: ${task.due || task.start || '—'}`;
+    tt.textContent = `${task.title} (milestone)\nDate: ${task.due || task.start || '—'}`;
     diamond.appendChild(tt);
 
     // Click
@@ -827,7 +916,7 @@ export class GanttView implements SubView {
       label.setAttribute('text-anchor', 'middle');
       label.setAttribute('class', 'pm-gantt-milestone-label');
       label.setAttribute('fill', color);
-      label.textContent = `💎 ${task.title.length > 16 ? task.title.slice(0, 14) + '…' : task.title}`;
+      label.textContent = task.title.length > 16 ? task.title.slice(0, 14) + '…' : task.title;
       labelsG.appendChild(label);
     }
 
@@ -905,6 +994,69 @@ export class GanttView implements SubView {
     defs.appendChild(marker);
 
     this.svgEl.appendChild(arrowGroup);
+  }
+
+  // ─── Baseline overlay ──────────────────────────────────────────────────────
+
+  private renderBaselineOverlay(): void {
+    if (!this.activeBaseline) return;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'pm-gantt-baseline-group');
+
+    // Build a map from task ID to row index
+    const rowMap = new Map<string, number>();
+    let rowIdx = 0;
+    const countRows = (tasks: Task[]) => {
+      for (const t of tasks) {
+        rowMap.set(t.id, rowIdx);
+        rowIdx++;
+        if (!t.collapsed && t.subtasks.length) countRows(t.subtasks);
+      }
+    };
+    countRows(this.project.tasks);
+
+    for (const snap of this.activeBaseline.tasks) {
+      const row = rowMap.get(snap.taskId);
+      if (row === undefined) continue;
+      if (!snap.start && !snap.due) continue;
+
+      const startDate = snap.start ? new Date(snap.start) : new Date(snap.due);
+      const endDate = snap.due ? new Date(new Date(snap.due).getTime() + DAY_MS) : new Date(startDate.getTime() + DAY_MS);
+      const x = Math.max(0, this.dateToX(startDate));
+      const xEnd = Math.min(this.cfg.totalWidth, this.dateToX(endDate));
+      const width = Math.max(4, xEnd - x);
+
+      const rowY = HEADER_HEIGHT + row * ROW_HEIGHT;
+      const y = rowY + ROW_HEIGHT - 10; // Below the actual bar
+      const height = 6;
+
+      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', String(x));
+      rect.setAttribute('y', String(y));
+      rect.setAttribute('width', String(width));
+      rect.setAttribute('height', String(height));
+      rect.setAttribute('rx', '3');
+      rect.setAttribute('class', 'pm-gantt-baseline-bar');
+
+      // Tooltip showing deviation
+      const currentTask = flattenTasks(this.project.tasks).find(f => f.task.id === snap.taskId)?.task;
+      if (currentTask) {
+        const tt = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+        const startDiff = currentTask.start && snap.start
+          ? Math.round((new Date(currentTask.start).getTime() - new Date(snap.start).getTime()) / DAY_MS)
+          : 0;
+        const dueDiff = currentTask.due && snap.due
+          ? Math.round((new Date(currentTask.due).getTime() - new Date(snap.due).getTime()) / DAY_MS)
+          : 0;
+        tt.textContent = `Baseline: ${snap.start || '—'} → ${snap.due || '—'}\nStart drift: ${startDiff > 0 ? '+' : ''}${startDiff}d, Due drift: ${dueDiff > 0 ? '+' : ''}${dueDiff}d`;
+        rect.appendChild(tt);
+      }
+
+      g.appendChild(rect);
+    }
+
+    this.svgEl.appendChild(g);
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

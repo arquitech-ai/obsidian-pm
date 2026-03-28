@@ -1,4 +1,4 @@
-import { App, Modal, Menu } from 'obsidian';
+import { App, Modal, Menu, MarkdownRenderer, Component } from 'obsidian';
 import type PMPlugin from '../main';
 import {
   Project, Task, TaskStatus, TaskPriority, TaskType, Recurrence, TimeLog,
@@ -64,11 +64,52 @@ export class TaskModal extends Modal {
     titleInput.focus();
     titleInput.select();
 
-    // ── Property strip ────────────────────────────────────────────────────────
-    const props = contentEl.createDiv('pm-modal-props');
+    // ── Description (above properties) ──────────────────────────────────────
+    const descSection = contentEl.createDiv('pm-modal-section pm-modal-desc-section');
+    descSection.createEl('h4', { text: 'Description', cls: 'pm-modal-section-title' });
+    const descArea = descSection.createEl('textarea', { cls: 'pm-modal-description' });
+    descArea.placeholder = 'Add a description…';
+    descArea.value = this.task.description;
+    // Rendered markdown preview (for wiki-links etc.)
+    const previewEl = descSection.createDiv('pm-modal-desc-preview');
+    const renderPreview = () => {
+      previewEl.empty();
+      if (this.task.description.trim()) {
+        const component = new Component();
+        component.load();
+        MarkdownRenderer.render(
+          this.app,
+          this.task.description,
+          previewEl,
+          this.project.filePath,
+          component,
+        );
+      }
+    };
+    renderPreview();
+    descArea.addEventListener('input', () => {
+      this.task.description = descArea.value;
+      renderPreview();
+    });
+
+    // ── Property strip (collapsible) ──────────────────────────────────────
+    const propsContainer = contentEl.createDiv('pm-modal-props-container');
+    const propsToggle = propsContainer.createEl('button', { cls: 'pm-props-toggle-btn' });
+    propsToggle.setText('Properties ▶');
+    const props = propsContainer.createDiv('pm-modal-props pm-modal-props--collapsed');
+    propsToggle.addEventListener('click', () => {
+      const collapsed = props.hasClass('pm-modal-props--collapsed');
+      if (collapsed) {
+        props.removeClass('pm-modal-props--collapsed');
+        propsToggle.setText('Properties ▼');
+      } else {
+        props.addClass('pm-modal-props--collapsed');
+        propsToggle.setText('Properties ▶');
+      }
+    });
 
     // Status
-    this.renderPropRow(props, '◑ Status', () => {
+    this.renderPropRow(props, 'Status', () => {
       const val = contentEl.createEl('button', { cls: 'pm-prop-value pm-prop-value--badge' });
       val.style.setProperty('--badge-color', statusConfig?.color ?? '#94a3b8');
       val.setText(`${statusConfig?.icon ?? ''} ${statusConfig?.label ?? this.task.status}`);
@@ -90,7 +131,7 @@ export class TaskModal extends Modal {
 
     // Priority
     const prioConfig = this.plugin.settings.priorities.find(p => p.id === this.task.priority);
-    this.renderPropRow(props, '▲ Priority', () => {
+    this.renderPropRow(props, 'Priority', () => {
       const val = contentEl.createEl('button', { cls: 'pm-prop-value pm-prop-value--badge' });
       val.style.setProperty('--badge-color', prioConfig?.color ?? '#ca8a04');
       val.setText(`${prioConfig?.icon ?? ''} ${prioConfig?.label ?? this.task.priority}`);
@@ -110,26 +151,51 @@ export class TaskModal extends Modal {
       return val;
     });
 
-    // Type (task vs milestone)
-    this.renderPropRow(props, '💎 Type', () => {
-      const wrap = createDiv('pm-prop-value');
-      const btn = wrap.createEl('button', {
-        cls: `pm-prop-type-btn ${this.task.type === 'milestone' ? 'pm-prop-type-btn--milestone' : ''}`,
-      });
-      btn.setText(this.task.type === 'milestone' ? '💎 Milestone' : '☐ Task');
-      btn.addEventListener('click', () => {
-        this.task.type = this.task.type === 'milestone' ? 'task' : 'milestone';
-        if (this.task.type === 'milestone') {
-          this.task.start = ''; // milestones have only a due date
-          this.task.progress = 0;
-        }
-        this.render();
-      });
+    // Type (task / subtask / milestone)
+    this.renderPropRow(props, 'Type', () => {
+      const wrap = createDiv('pm-prop-value pm-prop-type-selector');
+      const types: { id: TaskType; label: string; cls: string }[] = [
+        { id: 'task', label: 'Task', cls: '' },
+        { id: 'subtask', label: 'Subtask', cls: 'pm-prop-type-btn--subtask' },
+        { id: 'milestone', label: 'Milestone', cls: 'pm-prop-type-btn--milestone' },
+      ];
+      for (const t of types) {
+        const btn = wrap.createEl('button', {
+          cls: `pm-prop-type-btn ${t.cls} ${this.task.type === t.id ? 'pm-prop-type-btn--active' : ''}`,
+        });
+        btn.setText(t.label);
+        btn.addEventListener('click', () => {
+          this.task.type = t.id;
+          if (t.id === 'milestone') {
+            this.task.start = '';
+            this.task.progress = 0;
+          }
+          this.render();
+        });
+      }
       return wrap;
     });
 
+    // Parent task selector (for subtask type)
+    if (this.task.type === 'subtask') {
+      this.renderPropRow(props, 'Parent Task', () => {
+        const wrap = createDiv('pm-prop-value');
+        const allTasks = flattenTasks(this.project.tasks).map(f => f.task).filter(t => t.id !== this.task.id);
+        const sel = wrap.createEl('select', { cls: 'pm-prop-select' });
+        sel.createEl('option', { value: '', text: this.parentId ? '' : '— Select parent —' });
+        for (const t of allTasks) {
+          const opt = sel.createEl('option', { value: t.id, text: t.title });
+          if (t.id === this.parentId) opt.selected = true;
+        }
+        sel.addEventListener('change', () => {
+          (this as unknown as { parentId: string | null }).parentId = sel.value || null;
+        });
+        return wrap;
+      });
+    }
+
     // Progress (hidden for milestones)
-    if (this.task.type !== 'milestone') this.renderPropRow(props, '◎ Progress', () => {
+    if (this.task.type !== 'milestone') this.renderPropRow(props, 'Progress', () => {
       const wrap = createDiv('pm-prop-value pm-prop-progress-wrap');
       const slider = wrap.createEl('input', { type: 'range', cls: 'pm-progress-slider' });
       slider.min = '0'; slider.max = '100'; slider.step = '5';
@@ -144,7 +210,7 @@ export class TaskModal extends Modal {
 
     // Start date (hidden for milestones)
     if (this.task.type !== 'milestone') {
-      this.renderPropRow(props, '▷ Start', () => {
+      this.renderPropRow(props, 'Start', () => {
         const input = createEl('input', { type: 'date', cls: 'pm-prop-value pm-prop-date' });
         input.value = this.task.start;
         input.addEventListener('change', () => { this.task.start = input.value; });
@@ -153,7 +219,7 @@ export class TaskModal extends Modal {
     }
 
     // Due date (label changes for milestones)
-    this.renderPropRow(props, this.task.type === 'milestone' ? '💎 Date' : '⏰ Due', () => {
+    this.renderPropRow(props, this.task.type === 'milestone' ? 'Date' : 'Due', () => {
       const input = createEl('input', { type: 'date', cls: 'pm-prop-value pm-prop-date' });
       input.value = this.task.due;
       input.addEventListener('change', () => { this.task.due = input.value; });
@@ -161,7 +227,7 @@ export class TaskModal extends Modal {
     });
 
     // Recurrence
-    this.renderPropRow(props, '🔁 Repeat', () => {
+    this.renderPropRow(props, 'Repeat', () => {
       const wrap = createDiv('pm-prop-value pm-prop-recurrence');
       const renderRecurrence = () => {
         wrap.empty();
@@ -203,7 +269,7 @@ export class TaskModal extends Modal {
     });
 
     // Assignees
-    this.renderPropRow(props, '👤 Assignees', () => {
+    this.renderPropRow(props, 'Assignees', () => {
       const wrap = createDiv('pm-prop-value pm-prop-assignees');
       const renderAvatars = () => {
         wrap.empty();
@@ -232,7 +298,7 @@ export class TaskModal extends Modal {
               }
               menu.addSeparator();
             }
-            menu.addItem(item => item.setTitle('✏️ Type a name…').onClick(() => {
+            menu.addItem(item => item.setTitle('Type a name…').onClick(() => {
               const name = window.prompt('Assignee name:');
               if (name?.trim()) {
                 this.task.assignees.push(name.trim());
@@ -248,7 +314,7 @@ export class TaskModal extends Modal {
     });
 
     // Tags
-    this.renderPropRow(props, '🏷 Tags', () => {
+    this.renderPropRow(props, 'Tags', () => {
       const wrap = createDiv('pm-prop-value pm-prop-tags');
       const renderTags = () => {
         wrap.empty();
@@ -278,7 +344,7 @@ export class TaskModal extends Modal {
     });
 
     // Dependencies
-    this.renderPropRow(props, '⛓ Depends on', () => {
+    this.renderPropRow(props, 'Depends on', () => {
       const wrap = createDiv('pm-prop-value pm-prop-deps');
       const allTasks = flattenTasks(this.project.tasks).map(f => f.task).filter(t => t.id !== this.task.id);
       const renderDeps = () => {
@@ -399,14 +465,6 @@ export class TaskModal extends Modal {
       });
     }
 
-    // ── Description ───────────────────────────────────────────────────────────
-    const descSection = contentEl.createDiv('pm-modal-section');
-    descSection.createEl('h4', { text: 'Description', cls: 'pm-modal-section-title' });
-    const descArea = descSection.createEl('textarea', { cls: 'pm-modal-description' });
-    descArea.placeholder = 'Add a description…';
-    descArea.value = this.task.description;
-    descArea.addEventListener('input', () => { this.task.description = descArea.value; });
-
     // ── Subtasks ──────────────────────────────────────────────────────────────
     const subSection = contentEl.createDiv('pm-modal-section');
     const subHeader = subSection.createDiv('pm-modal-section-header');
@@ -460,7 +518,7 @@ export class TaskModal extends Modal {
     const footer = contentEl.createDiv('pm-modal-footer');
 
     if (!this.isNew) {
-      const deleteBtn = footer.createEl('button', { text: '🗑 Delete', cls: 'pm-btn pm-btn-danger' });
+      const deleteBtn = footer.createEl('button', { text: 'Delete', cls: 'pm-btn pm-btn-danger' });
       deleteBtn.addEventListener('click', async () => {
         if (confirm(`Delete "${this.task.title}"?`)) {
           await this.plugin.store.deleteTask(this.project, this.task.id);
@@ -476,7 +534,7 @@ export class TaskModal extends Modal {
     cancelBtn.addEventListener('click', () => this.close());
 
     const saveBtn = footer.createEl('button', {
-      text: this.isNew ? '+ Create Task' : '✓ Save Changes',
+      text: this.isNew ? '+ Create Task' : 'Save Changes',
       cls: 'pm-btn pm-btn-primary',
     });
     saveBtn.addEventListener('click', async () => {
