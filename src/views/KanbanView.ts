@@ -1,0 +1,232 @@
+import type PMPlugin from '../main';
+import { Project, Task, TaskStatus, flattenTasks, makeTask, totalLoggedHours } from '../types';
+import { TaskModal } from '../modals/TaskModal';
+import { stringToColor, formatDateShort, todayMidnight, isTaskOverdue } from '../utils';
+import type { SubView } from './SubView';
+
+export class KanbanView implements SubView {
+  private dragTask: Task | null = null;
+  private dragSourceCol: TaskStatus | null = null;
+
+  constructor(
+    private container: HTMLElement,
+    private project: Project,
+    private plugin: PMPlugin,
+    private onRefresh: () => Promise<void>,
+  ) {}
+
+  render(): void {
+    this.container.empty();
+    this.container.addClass('pm-kanban-view');
+
+    const board = this.container.createDiv('pm-kanban-board');
+
+    for (const status of this.plugin.settings.statuses) {
+      const tasks = this.getTasksForStatus(status.id as TaskStatus);
+      this.renderColumn(board, status, tasks);
+    }
+  }
+
+  private getTasksForStatus(status: TaskStatus): Task[] {
+    // Flatten, filter by status (only top-level for kanban)
+    return this.project.tasks.filter(t => t.status === status);
+  }
+
+  private renderColumn(board: HTMLElement, status: { id: string; label: string; color: string; icon: string }, tasks: Task[]): void {
+    const col = board.createDiv('pm-kanban-col');
+    col.dataset.status = status.id;
+
+    // Column header
+    const header = col.createDiv('pm-kanban-col-header');
+    header.style.setProperty('--col-color', status.color);
+
+    const topBar = header.createDiv('pm-kanban-col-topbar');
+    topBar.style.background = status.color;
+
+    const titleRow = header.createDiv('pm-kanban-col-title-row');
+    const badge = titleRow.createEl('span', {
+      text: `${status.icon} ${status.label}`,
+      cls: 'pm-kanban-col-badge',
+    });
+    badge.style.color = status.color;
+
+    titleRow.createEl('span', {
+      text: String(tasks.length),
+      cls: 'pm-kanban-col-count',
+    });
+
+    // Cards container
+    const cardsEl = col.createDiv('pm-kanban-cards');
+    cardsEl.dataset.status = status.id;
+
+    for (const task of tasks) {
+      this.renderCard(cardsEl, task, status.color);
+    }
+
+    // Drop zone events
+    cardsEl.addEventListener('dragover', e => {
+      e.preventDefault();
+      cardsEl.addClass('pm-kanban-drop-target');
+      const afterEl = this.getDragAfterElement(cardsEl, e.clientY);
+      const dragging = cardsEl.querySelector('.pm-kanban-card--dragging');
+      if (dragging) {
+        if (afterEl) {
+          cardsEl.insertBefore(dragging, afterEl);
+        } else {
+          cardsEl.appendChild(dragging);
+        }
+      }
+    });
+
+    cardsEl.addEventListener('dragleave', () => {
+      cardsEl.removeClass('pm-kanban-drop-target');
+    });
+
+    cardsEl.addEventListener('drop', async e => {
+      e.preventDefault();
+      cardsEl.removeClass('pm-kanban-drop-target');
+      if (!this.dragTask) return;
+      const newStatus = status.id as TaskStatus;
+      if (newStatus !== this.dragTask.status) {
+        await this.plugin.store.updateTask(this.project, this.dragTask.id, { status: newStatus });
+        await this.onRefresh();
+      }
+      this.dragTask = null;
+    });
+
+    // Add task button
+    const addBtn = col.createEl('button', {
+      text: '+ Add Task',
+      cls: 'pm-kanban-add-btn',
+    });
+    addBtn.style.setProperty('--col-color', status.color);
+    addBtn.addEventListener('click', async () => {
+      const task = makeTask({ status: status.id as TaskStatus });
+      new TaskModal(this.plugin.app, this.plugin, this.project, task, null, async () => {
+        await this.onRefresh();
+      }).open();
+    });
+  }
+
+  private renderCard(container: HTMLElement, task: Task, columnColor: string): void {
+    const card = container.createDiv('pm-kanban-card');
+    card.draggable = true;
+    card.dataset.taskId = task.id;
+
+    const priorityConfig = this.plugin.settings.priorities.find(p => p.id === task.priority);
+    if (priorityConfig) {
+      const priorityBar = card.createDiv('pm-kanban-card-priority-bar');
+      priorityBar.style.background = priorityConfig.color;
+    }
+
+    const body = card.createDiv('pm-kanban-card-body');
+
+    // Title + type badges
+    const titleRow = body.createDiv('pm-kanban-card-title-row');
+    const titleEl = titleRow.createEl('span', { text: task.title, cls: 'pm-kanban-card-title' });
+    if (task.type === 'milestone') titleRow.createEl('span', { text: '💎', cls: 'pm-task-icon', attr: { title: 'Milestone' } });
+    if (task.recurrence) titleRow.createEl('span', { text: '🔁', cls: 'pm-task-icon', attr: { title: 'Recurring' } });
+
+    // Time badge
+    const logged = totalLoggedHours(task);
+    const est = task.timeEstimate ?? 0;
+    if (logged > 0 || est > 0) {
+      const timeBadge = body.createEl('span', { cls: 'pm-time-chip pm-time-chip--sm' });
+      timeBadge.setText(est > 0 ? `⏱ ${logged}/${est}h` : `⏱ ${logged}h`);
+      if (est > 0 && logged > est) timeBadge.addClass('pm-time-chip--over');
+    }
+
+    // Tags
+    if (task.tags.length) {
+      const tagsEl = body.createDiv('pm-kanban-card-tags');
+      for (const tag of task.tags.slice(0, 3)) {
+        tagsEl.createEl('span', { text: tag, cls: 'pm-tag pm-tag--sm' });
+      }
+    }
+
+    // Footer: assignees + due date
+    const footer = body.createDiv('pm-kanban-card-footer');
+
+    const avatars = footer.createDiv('pm-kanban-card-avatars');
+    for (const a of task.assignees.slice(0, 3)) {
+      const av = avatars.createEl('span', { cls: 'pm-avatar pm-avatar--sm' });
+      av.textContent = a.slice(0, 2).toUpperCase();
+      av.title = a;
+      av.style.background = this.stringToColor(a);
+    }
+
+    if (task.due) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDate = new Date(task.due);
+      const isOverdue = dueDate < today && task.status !== 'done';
+      const chip = footer.createEl('span', {
+        text: `📅 ${this.formatDate(task.due)}`,
+        cls: 'pm-kanban-due',
+      });
+      if (isOverdue) chip.addClass('pm-kanban-due--overdue');
+    }
+
+    // Progress mini bar
+    if (task.progress > 0) {
+      const pbar = body.createDiv('pm-kanban-card-pbar');
+      const pfill = pbar.createDiv('pm-kanban-card-pbar-fill');
+      pfill.style.width = `${task.progress}%`;
+      pfill.style.background = columnColor;
+    }
+
+    // Subtask count
+    if (task.subtasks.length) {
+      const sub = body.createEl('span', {
+        text: `◫ ${task.subtasks.filter(s => s.status === 'done').length}/${task.subtasks.length}`,
+        cls: 'pm-kanban-card-subtasks',
+      });
+    }
+
+    // Drag events
+    card.addEventListener('dragstart', () => {
+      this.dragTask = task;
+      card.addClass('pm-kanban-card--dragging');
+      setTimeout(() => card.style.opacity = '0.5', 0);
+    });
+
+    card.addEventListener('dragend', () => {
+      card.removeClass('pm-kanban-card--dragging');
+      card.style.opacity = '1';
+    });
+
+    // Click to open
+    card.addEventListener('click', async () => {
+      new TaskModal(this.plugin.app, this.plugin, this.project, task, null, async () => {
+        await this.onRefresh();
+      }).open();
+    });
+  }
+
+  private getDragAfterElement(container: HTMLElement, y: number): Element | null {
+    const cards = Array.from(container.querySelectorAll('.pm-kanban-card:not(.pm-kanban-card--dragging)'));
+    let closest: Element | null = null;
+    let closestOffset = Number.NEGATIVE_INFINITY;
+    for (const card of cards) {
+      const box = card.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closestOffset) {
+        closestOffset = offset;
+        closest = card;
+      }
+    }
+    return closest;
+  }
+
+  private formatDate(iso: string): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  private stringToColor(s: string): string {
+    let hash = 0;
+    for (let i = 0; i < s.length; i++) hash = s.charCodeAt(i) + ((hash << 5) - hash);
+    return `hsl(${Math.abs(hash) % 360}, 55%, 45%)`;
+  }
+}
