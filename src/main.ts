@@ -1,10 +1,11 @@
-import { Plugin, TFile, WorkspaceLeaf, Notice, SuggestModal } from 'obsidian';
-import { DEFAULT_SETTINGS, PMSettings, Project, Task } from './types';
+import { Plugin, TFile, Notice } from 'obsidian';
+import { DEFAULT_SETTINGS, PMSettings, Project } from './types';
 import { flattenTasks } from './store/TaskTreeOps';
 import { ProjectStore } from './store';
 import { PMSettingTab } from './settings';
 import { ProjectView, PM_VIEW_TYPE } from './views/ProjectView';
 import { openProjectModal, openTaskModal } from './ui/ModalFactory';
+import { ProjectPickerModal, TaskPickerModal } from './modals/PickerModals';
 import { Notifier } from './components/Notifier';
 import { migrateProjects } from './migration';
 
@@ -163,55 +164,5 @@ export default class PMPlugin extends Plugin {
         await this.openProjectFile(pFile);
       }
     } });
-  }
-}
-
-/** Simple picker modal for selecting a project */
-class ProjectPickerModal extends SuggestModal<Project> {
-  constructor(
-    app: import('obsidian').App,
-    private projects: Project[],
-    private onChoose: (project: Project) => void,
-  ) {
-    super(app);
-    this.setPlaceholder('Pick a project…');
-  }
-
-  getSuggestions(query: string): Project[] {
-    const q = query.toLowerCase();
-    return this.projects.filter(p => p.title.toLowerCase().includes(q));
-  }
-
-  renderSuggestion(project: Project, el: HTMLElement): void {
-    el.createEl('span', { text: `${project.icon} ${project.title}` });
-  }
-
-  onChooseSuggestion(project: Project): void {
-    this.onChoose(project);
-  }
-}
-
-/** Simple picker modal for selecting a task (parent) */
-class TaskPickerModal extends SuggestModal<Task> {
-  constructor(
-    app: import('obsidian').App,
-    private tasks: Task[],
-    private onChoose: (task: Task) => void,
-  ) {
-    super(app);
-    this.setPlaceholder('Pick a parent task…');
-  }
-
-  getSuggestions(query: string): Task[] {
-    const q = query.toLowerCase();
-    return this.tasks.filter(t => t.title.toLowerCase().includes(q));
-  }
-
-  renderSuggestion(task: Task, el: HTMLElement): void {
-    el.createEl('span', { text: task.title });
-  }
-
-  onChooseSuggestion(task: Task): void {
-    this.onChoose(task);
   }
 }
