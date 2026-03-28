@@ -92,6 +92,7 @@ export class ProjectView extends ItemView {
       this.keydownHandler = null;
     }
     this.fileModifyRef = null;
+    this.subview?.destroy?.();
     this.subview = null;
   }
 
@@ -281,6 +282,7 @@ export class ProjectView extends ItemView {
 
   private renderCurrentView(): void {
     if (!this.project) return;
+    this.subview?.destroy?.();
     this.contentEl2.empty();
     this.subview = null;
 
