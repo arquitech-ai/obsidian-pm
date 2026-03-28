@@ -4,8 +4,6 @@ import {
   Task,
   CustomFieldDef,
   SavedView,
-  Baseline,
-  BaselineTaskSnapshot,
   makeProject,
   makeTask,
   updateTaskInTree,
@@ -43,8 +41,9 @@ export class ProjectStore {
 
   /** Get the task subfolder path for a project */
   private projectTaskFolder(project: Project): string {
-    // e.g. "Projects/MyProject.md" → "Projects/MyProject"
-    return project.filePath.replace(/\.md$/, '');
+    // e.g. "Projects/MyProject.md" → "Projects/MyProject_tasks"
+    // Use _tasks suffix to avoid conflict with the .md file
+    return project.filePath.replace(/\.md$/, '_tasks');
   }
 
   // ─── Load ──────────────────────────────────────────────────────────────────
@@ -92,7 +91,6 @@ export class ProjectStore {
         updatedAt: (frontmatter.updatedAt as string) ?? new Date().toISOString(),
         filePath: file.path,
         savedViews: this.hydrateSavedViews((frontmatter.savedViews as unknown[]) ?? []),
-        baselines: this.hydrateBaselines((frontmatter.baselines as unknown[]) ?? []),
       };
 
       if (hasEmbeddedTasks) {
@@ -226,27 +224,6 @@ export class ProjectStore {
         },
         sortKey: (v.sortKey as string) ?? 'status',
         sortDir: (v.sortDir as 'asc' | 'desc') ?? 'asc',
-      };
-    });
-  }
-
-  private hydrateBaselines(raw: unknown[]): Baseline[] {
-    if (!Array.isArray(raw)) return [];
-    return raw.filter(r => r && typeof r === 'object').map(r => {
-      const b = r as Record<string, unknown>;
-      const tasks = Array.isArray(b.tasks) ? (b.tasks as Record<string, unknown>[]).map(t => ({
-        taskId: (t.taskId as string) ?? '',
-        title: (t.title as string) ?? '',
-        start: (t.start as string) ?? '',
-        due: (t.due as string) ?? '',
-        progress: typeof t.progress === 'number' ? t.progress : 0,
-        status: (t.status as BaselineTaskSnapshot['status']) ?? 'todo',
-      })) : [];
-      return {
-        id: (b.id as string) ?? '',
-        name: (b.name as string) ?? 'Untitled',
-        createdAt: (b.createdAt as string) ?? new Date().toISOString(),
-        tasks,
       };
     });
   }
@@ -392,7 +369,6 @@ export class ProjectStore {
       customFields: project.customFields,
       teamMembers: project.teamMembers,
       savedViews: project.savedViews.length ? project.savedViews : [],
-      baselines: project.baselines?.length ? project.baselines : [],
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
     };

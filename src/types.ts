@@ -62,23 +62,6 @@ export interface Project {
   updatedAt: string;
   filePath: string; // resolved vault path
   savedViews: SavedView[];
-  baselines: Baseline[];
-}
-
-export interface BaselineTaskSnapshot {
-  taskId: string;
-  title: string;
-  start: string;
-  due: string;
-  progress: number;
-  status: TaskStatus;
-}
-
-export interface Baseline {
-  id: string;
-  name: string;
-  createdAt: string;
-  tasks: BaselineTaskSnapshot[];
 }
 
 export interface FilterState {
@@ -197,7 +180,6 @@ export function makeProject(title: string, filePath: string): Project {
     updatedAt: now,
     filePath,
     savedViews: [],
-    baselines: [],
   };
 }
 

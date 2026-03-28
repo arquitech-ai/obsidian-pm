@@ -1638,23 +1638,3 @@
 .pm-gantt-label-row:hover .pm-gantt-label-add-btn { opacity: 1; }
 .pm-gantt-label-add-btn:hover { background: var(--pm-bg3); color: var(--pm-accent); }
 
-/* ── Gantt baseline overlay ──────────────────────────────────────────── */
-.pm-gantt-baseline-bar {
-  fill: rgba(255, 255, 255, 0.15);
-  stroke: rgba(255, 255, 255, 0.3);
-  stroke-width: 1;
-  pointer-events: auto;
-}
-.theme-light .pm-gantt-baseline-bar {
-  fill: rgba(0, 0, 0, 0.08);
-  stroke: rgba(0, 0, 0, 0.15);
-}
-.pm-gantt-baseline-select {
-  padding: 3px 8px;
-  border: 1px solid var(--pm-border);
-  border-radius: var(--pm-radius-sm);
-  background: var(--pm-bg2);
-  color: var(--pm-text);
-  font-size: 12px;
-  cursor: pointer;
-}

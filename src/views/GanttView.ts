@@ -1,5 +1,5 @@
 import type PMPlugin from '../main';
-import { Project, Task, GanttGranularity, flattenTasks, FlatTask, makeTask, moveTaskInTree, Baseline } from '../types';
+import { Project, Task, GanttGranularity, flattenTasks, FlatTask, makeTask, moveTaskInTree } from '../types';
 import { TaskModal } from '../modals/TaskModal';
 import type { SubView } from './SubView';
 
@@ -43,8 +43,6 @@ export class GanttView implements SubView {
   private dragInitialX = 0;
   private dragInitialW = 0;
   private dragMoved = false;
-  private activeBaseline: Baseline | null = null;
-
   constructor(
     private container: HTMLElement,
     private project: Project,
@@ -102,19 +100,6 @@ export class GanttView implements SubView {
       await this.setAllCollapsed(true);
     });
 
-    // Baseline selector
-    if (this.project.baselines?.length) {
-      const blSel = bar.createEl('select', { cls: 'pm-gantt-baseline-select' });
-      blSel.createEl('option', { value: '', text: 'No Baseline' });
-      for (const bl of this.project.baselines) {
-        const opt = blSel.createEl('option', { value: bl.id, text: bl.name });
-        if (this.activeBaseline?.id === bl.id) opt.selected = true;
-      }
-      blSel.addEventListener('change', () => {
-        this.activeBaseline = this.project.baselines.find(b => b.id === blSel.value) ?? null;
-        this.render();
-      });
-    }
   }
 
   // ─── Timeline config ───────────────────────────────────────────────────────
@@ -199,8 +184,6 @@ export class GanttView implements SubView {
     this.renderTaskRows(leftBody, totalRows);
     this.renderDependencyArrows();
     this.renderMilestoneLabels();
-    this.renderBaselineOverlay();
-
     // Click-to-create on empty SVG background
     this.svgEl.addEventListener('click', async (e: MouseEvent) => {
       const target = e.target as SVGElement;
@@ -994,69 +977,6 @@ export class GanttView implements SubView {
     defs.appendChild(marker);
 
     this.svgEl.appendChild(arrowGroup);
-  }
-
-  // ─── Baseline overlay ──────────────────────────────────────────────────────
-
-  private renderBaselineOverlay(): void {
-    if (!this.activeBaseline) return;
-
-    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.setAttribute('class', 'pm-gantt-baseline-group');
-
-    // Build a map from task ID to row index
-    const rowMap = new Map<string, number>();
-    let rowIdx = 0;
-    const countRows = (tasks: Task[]) => {
-      for (const t of tasks) {
-        rowMap.set(t.id, rowIdx);
-        rowIdx++;
-        if (!t.collapsed && t.subtasks.length) countRows(t.subtasks);
-      }
-    };
-    countRows(this.project.tasks);
-
-    for (const snap of this.activeBaseline.tasks) {
-      const row = rowMap.get(snap.taskId);
-      if (row === undefined) continue;
-      if (!snap.start && !snap.due) continue;
-
-      const startDate = snap.start ? new Date(snap.start) : new Date(snap.due);
-      const endDate = snap.due ? new Date(new Date(snap.due).getTime() + DAY_MS) : new Date(startDate.getTime() + DAY_MS);
-      const x = Math.max(0, this.dateToX(startDate));
-      const xEnd = Math.min(this.cfg.totalWidth, this.dateToX(endDate));
-      const width = Math.max(4, xEnd - x);
-
-      const rowY = HEADER_HEIGHT + row * ROW_HEIGHT;
-      const y = rowY + ROW_HEIGHT - 10; // Below the actual bar
-      const height = 6;
-
-      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      rect.setAttribute('x', String(x));
-      rect.setAttribute('y', String(y));
-      rect.setAttribute('width', String(width));
-      rect.setAttribute('height', String(height));
-      rect.setAttribute('rx', '3');
-      rect.setAttribute('class', 'pm-gantt-baseline-bar');
-
-      // Tooltip showing deviation
-      const currentTask = flattenTasks(this.project.tasks).find(f => f.task.id === snap.taskId)?.task;
-      if (currentTask) {
-        const tt = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-        const startDiff = currentTask.start && snap.start
-          ? Math.round((new Date(currentTask.start).getTime() - new Date(snap.start).getTime()) / DAY_MS)
-          : 0;
-        const dueDiff = currentTask.due && snap.due
-          ? Math.round((new Date(currentTask.due).getTime() - new Date(snap.due).getTime()) / DAY_MS)
-          : 0;
-        tt.textContent = `Baseline: ${snap.start || '—'} → ${snap.due || '—'}\nStart drift: ${startDiff > 0 ? '+' : ''}${startDiff}d, Due drift: ${dueDiff > 0 ? '+' : ''}${dueDiff}d`;
-        rect.appendChild(tt);
-      }
-
-      g.appendChild(rect);
-    }
-
-    this.svgEl.appendChild(g);
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
