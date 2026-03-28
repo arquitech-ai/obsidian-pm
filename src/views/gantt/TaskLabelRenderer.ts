@@ -1,6 +1,6 @@
 import type PMPlugin from '../../main';
 import type { Project, Task } from '../../types';
-import { moveTaskInTree } from '../../types';
+import { moveTaskInTree } from '../../store/TaskTreeOps';
 import { openTaskModal } from '../../ui/ModalFactory';
 import { ROW_HEIGHT } from './TimelineConfig';
 

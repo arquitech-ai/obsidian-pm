@@ -1,6 +1,7 @@
 import { App, Modal, MarkdownRenderer, Component } from 'obsidian';
 import type PMPlugin from '../main';
-import { Project, Task, makeTask, addTaskToTree, updateTaskInTree } from '../types';
+import { Project, Task, makeTask } from '../types';
+import { addTaskToTree, updateTaskInTree } from '../store/TaskTreeOps';
 import { renderTaskFormFields } from './TaskFormFields';
 import { renderTimeTrackingPanel } from './TimeTrackingPanel';
 import { renderSubtasksPanel } from './SubtasksPanel';

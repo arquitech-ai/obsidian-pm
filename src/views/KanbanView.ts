@@ -1,5 +1,6 @@
 import type PMPlugin from '../main';
-import { Project, Task, TaskStatus, flattenTasks, makeTask, totalLoggedHours } from '../types';
+import { Project, Task, TaskStatus, makeTask } from '../types';
+import { flattenTasks, totalLoggedHours } from '../store/TaskTreeOps';
 import { stringToColor, formatDateShort, isTaskOverdue } from '../utils';
 import { openTaskModal } from '../ui/ModalFactory';
 import type { SubView } from './SubView';

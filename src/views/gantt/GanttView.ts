@@ -1,6 +1,6 @@
 import type PMPlugin from '../../main';
-import type { Project, Task, GanttGranularity, FlatTask } from '../../types';
-import { flattenTasks } from '../../types';
+import type { Project, Task, GanttGranularity } from '../../types';
+import { type FlatTask, flattenTasks } from '../../store/TaskTreeOps';
 import { openTaskModal } from '../../ui/ModalFactory';
 import type { SubView } from '../SubView';
 import type { TimelineCfg } from './TimelineConfig';

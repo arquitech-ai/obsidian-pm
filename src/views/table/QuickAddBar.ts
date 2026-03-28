@@ -1,6 +1,7 @@
 import type PMPlugin from '../../main';
 import type { Project } from '../../types';
-import { makeTask, addTaskToTree } from '../../types';
+import { makeTask } from '../../types';
+import { addTaskToTree } from '../../store/TaskTreeOps';
 
 export function renderQuickAddBar(
   container: HTMLElement,

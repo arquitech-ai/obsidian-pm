@@ -1,5 +1,5 @@
 import type { Task } from '../types';
-import { totalLoggedHours } from '../types';
+import { totalLoggedHours } from '../store/TaskTreeOps';
 
 /**
  * Renders the time tracking section (estimate, progress bar, log entries)

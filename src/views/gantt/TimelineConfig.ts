@@ -1,5 +1,5 @@
 import type { Task, GanttGranularity } from '../../types';
-import { flattenTasks } from '../../types';
+import { flattenTasks } from '../../store/TaskTreeOps';
 
 export const DAY_MS = 86400_000;
 export const ROW_HEIGHT = 44;

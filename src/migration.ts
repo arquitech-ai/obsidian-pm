@@ -1,6 +1,6 @@
 import { TFile, Notice } from 'obsidian';
 import type PMPlugin from './main';
-import { flattenTasks } from './types';
+import { flattenTasks } from './store/TaskTreeOps';
 
 /**
  * Migrates old-format projects (tasks embedded in YAML frontmatter)

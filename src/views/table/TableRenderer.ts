@@ -1,7 +1,7 @@
 import { Menu } from 'obsidian';
 import type PMPlugin from '../../main';
-import type { Project, Task, FlatTask, FilterState, TaskStatus, TaskPriority, DueDateFilter } from '../../types';
-import { flattenTasks, findTask, totalLoggedHours, deleteTaskFromTree } from '../../types';
+import type { Project, Task, FilterState, TaskStatus, TaskPriority, DueDateFilter } from '../../types';
+import { type FlatTask, flattenTasks, findTask, totalLoggedHours, deleteTaskFromTree } from '../../store/TaskTreeOps';
 import { stringToColor, formatDateLong, todayMidnight, isTaskOverdue } from '../../utils';
 import { renderStatusBadge, renderPriorityBadge } from '../../ui/StatusBadge';
 import { openTaskModal } from '../../ui/ModalFactory';

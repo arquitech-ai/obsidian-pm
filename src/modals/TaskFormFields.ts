@@ -2,8 +2,9 @@ import { Menu } from 'obsidian';
 import type PMPlugin from '../main';
 import {
   Project, Task, TaskStatus, TaskPriority, TaskType, Recurrence,
-  CustomFieldDef, flattenTasks,
+  CustomFieldDef,
 } from '../types';
+import { flattenTasks } from '../store/TaskTreeOps';
 import { renderPropRow } from '../ui/FormField';
 
 export interface TaskFormFieldsContext {

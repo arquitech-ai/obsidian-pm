@@ -6,12 +6,13 @@ import {
   SavedView,
   makeProject,
   makeTask,
+} from './types';
+import {
   updateTaskInTree,
   deleteTaskFromTree,
   addTaskToTree,
   findTask,
-  flattenTasks,
-} from './types';
+} from './store/TaskTreeOps';
 import { sanitizeFileName } from './utils';
 
 const FRONTMATTER_KEY = 'pm-project';

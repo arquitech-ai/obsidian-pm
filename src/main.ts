@@ -1,5 +1,6 @@
 import { Plugin, TFile, WorkspaceLeaf, Notice, SuggestModal } from 'obsidian';
-import { DEFAULT_SETTINGS, PMSettings, Project, Task, flattenTasks } from './types';
+import { DEFAULT_SETTINGS, PMSettings, Project, Task } from './types';
+import { flattenTasks } from './store/TaskTreeOps';
 import { ProjectStore } from './store';
 import { PMSettingTab } from './settings';
 import { ProjectView, PM_VIEW_TYPE } from './views/ProjectView';
