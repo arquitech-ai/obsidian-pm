@@ -5,10 +5,10 @@ import {
   totalLoggedHours, FilterState, SavedView, DueDateFilter,
   makeTask, addTaskToTree, makeId, makeDefaultFilter, deleteTaskFromTree,
 } from '../types';
-import { TaskModal } from '../modals/TaskModal';
 import { stringToColor, formatDateLong, todayMidnight, isTaskOverdue } from '../utils';
 import { renderStatusBadge, renderPriorityBadge } from '../ui/StatusBadge';
 import { renderFilterDropdown } from '../ui/FilterDropdown';
+import { openTaskModal } from '../ui/ModalFactory';
 import type { SubView } from './SubView';
 
 type SortKey = 'title' | 'status' | 'priority' | 'due' | 'assignees' | 'progress';
@@ -375,9 +375,7 @@ export class TableView implements SubView {
     const addCell = addRow.createEl('td', { attr: { colspan: String(9 + this.project.customFields.length) } });
     const addBtn = addCell.createEl('button', { text: '+ Add Task', cls: 'pm-table-add-btn' });
     addBtn.addEventListener('click', async () => {
-      new TaskModal(this.app, this.plugin, this.project, null, null, async () => {
-        await this.onRefresh();
-      }).open();
+      openTaskModal(this.plugin, this.project, { onSave: async () => { await this.onRefresh(); } });
     });
   }
 
@@ -488,9 +486,7 @@ export class TableView implements SubView {
         e.preventDefault();
         const task = findTask(this.project.tasks, this.selectedTaskId);
         if (task) {
-          new TaskModal(this.app, this.plugin, this.project, task, null, async () => {
-            await this.onRefresh();
-          }).open();
+          openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
         }
         break;
       }
@@ -590,9 +586,7 @@ export class TableView implements SubView {
 
     const titleSpan = titleCell.createEl('span', { text: task.title, cls: 'pm-task-title-text' });
     titleSpan.addEventListener('click', async () => {
-      new TaskModal(this.app, this.plugin, this.project, task, null, async () => {
-        await this.onRefresh();
-      }).open();
+      openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
     });
     titleSpan.addEventListener('dblclick', e => {
       e.stopPropagation();
@@ -710,14 +704,10 @@ export class TableView implements SubView {
     actionsMenu.addEventListener('click', e => {
       const menu = new Menu();
       menu.addItem(item => item.setTitle('Edit task').setIcon('pencil').onClick(async () => {
-        new TaskModal(this.app, this.plugin, this.project, task, null, async () => {
-          await this.onRefresh();
-        }).open();
+        openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
       }));
       menu.addItem(item => item.setTitle('Add subtask').setIcon('plus').onClick(async () => {
-        new TaskModal(this.app, this.plugin, this.project, null, task.id, async () => {
-          await this.onRefresh();
-        }).open();
+        openTaskModal(this.plugin, this.project, { parentId: task.id, onSave: async () => { await this.onRefresh(); } });
       }));
       menu.addSeparator();
       menu.addItem(item => item.setTitle('Delete task').setIcon('trash').onClick(async () => {

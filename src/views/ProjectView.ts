@@ -6,8 +6,7 @@ import type { SubView } from './SubView';
 import { TableView } from './TableView';
 import { GanttView } from './GanttView';
 import { KanbanView } from './KanbanView';
-import { ProjectModal } from '../modals/ProjectModal';
-import { TaskModal } from '../modals/TaskModal';
+import { openProjectModal, openTaskModal } from '../ui/ModalFactory';
 
 export const PM_VIEW_TYPE = 'pm-project-view';
 
@@ -118,10 +117,10 @@ export class ProjectView extends ItemView {
 
     const newBtn = this.toolbarEl.createEl('button', { text: '+ New Project', cls: 'pm-btn pm-btn-primary' });
     newBtn.addEventListener('click', async () => {
-      new ProjectModal(this.app, this.plugin, null, async project => {
+      openProjectModal(this.plugin, { onSave: async project => {
         const file = this.app.vault.getAbstractFileByPath(project.filePath) as TFile;
         if (file) await this.plugin.openProjectFile(file);
-      }).open();
+      } });
     });
 
     this.contentEl2.empty();
@@ -140,10 +139,10 @@ export class ProjectView extends ItemView {
       empty.createEl('p', { text: 'Create your first project to get started.' });
       const btn = empty.createEl('button', { text: '+ New Project', cls: 'pm-btn pm-btn-primary' });
       btn.addEventListener('click', async () => {
-          new ProjectModal(this.app, this.plugin, null, async project => {
+        openProjectModal(this.plugin, { onSave: async project => {
           const file = this.app.vault.getAbstractFileByPath(project.filePath) as TFile;
           if (file) await this.plugin.openProjectFile(file);
-        }).open();
+        } });
       });
       return;
     }
@@ -179,9 +178,9 @@ export class ProjectView extends ItemView {
       card.addEventListener('contextmenu', (e: MouseEvent) => {
         const menu = new Menu();
         menu.addItem(item => item.setTitle('Edit project').setIcon('settings').onClick(async () => {
-              new ProjectModal(this.app, this.plugin, project, async () => {
+          openProjectModal(this.plugin, { project, onSave: async () => {
             await this.renderProjectListContent();
-          }).open();
+          } });
         }));
         menu.addItem(item => item.setTitle('Delete project').setIcon('trash').onClick(async () => {
           await this.plugin.store.deleteProject(project);
@@ -227,10 +226,10 @@ export class ProjectView extends ItemView {
     const left = this.toolbarEl.createDiv('pm-toolbar-left');
     const iconEl = left.createEl('span', { text: this.project.icon, cls: 'pm-toolbar-icon' });
     iconEl.addEventListener('click', async () => {
-      new ProjectModal(this.app, this.plugin, this.project, async updated => {
+      openProjectModal(this.plugin, { project: this.project, onSave: async updated => {
         this.project = updated;
         this.renderProjectToolbar();
-      }).open();
+      } });
     });
 
     this.titleEl2 = left.createEl('h2', { text: this.project.title, cls: 'pm-toolbar-title' });
@@ -266,19 +265,17 @@ export class ProjectView extends ItemView {
     const addBtn = right.createEl('button', { text: '+ Add Task', cls: 'pm-btn pm-btn-primary' });
     addBtn.addEventListener('click', async () => {
       if (!this.project) return;
-      new TaskModal(this.app, this.plugin, this.project, null, null, async () => {
-        await this.refreshProject();
-      }).open();
+      openTaskModal(this.plugin, this.project, { onSave: async () => { await this.refreshProject(); } });
     });
 
     const settingsBtn = right.createEl('button', { cls: 'pm-btn pm-btn-icon', attr: { 'aria-label': 'Project settings' } });
     settingsBtn.createEl('span', { text: '⚙' });
     settingsBtn.addEventListener('click', async () => {
-      new ProjectModal(this.app, this.plugin, this.project, async updated => {
+      openProjectModal(this.plugin, { project: this.project, onSave: async updated => {
         this.project = updated;
         this.renderProjectToolbar();
         this.renderCurrentView();
-      }).open();
+      } });
     });
   }
 

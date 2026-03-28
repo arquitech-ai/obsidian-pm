@@ -1,6 +1,6 @@
 import type PMPlugin from '../main';
 import { Project, Task, GanttGranularity, flattenTasks, FlatTask, makeTask, moveTaskInTree } from '../types';
-import { TaskModal } from '../modals/TaskModal';
+import { openTaskModal } from '../ui/ModalFactory';
 import type { SubView } from './SubView';
 
 interface TimelineConfig {
@@ -194,9 +194,7 @@ export class GanttView implements SubView {
     addRow.style.height = `${ROW_HEIGHT}px`;
     const addBtn = addRow.createEl('button', { text: '+ Add Task', cls: 'pm-gantt-add-task-btn' });
     addBtn.addEventListener('click', async () => {
-      new TaskModal(this.plugin.app, this.plugin, this.project, null, null, async () => {
-        await this.onRefresh();
-      }).open();
+      openTaskModal(this.plugin, this.project, { onSave: async () => { await this.onRefresh(); } });
     });
 
     // Scroll to today on initial render
@@ -554,9 +552,7 @@ export class GanttView implements SubView {
     // Title
     const titleEl = el.createEl('span', { text: task.title, cls: 'pm-gantt-label-title' });
     titleEl.addEventListener('click', async () => {
-      new TaskModal(this.plugin.app, this.plugin, this.project, task, null, async () => {
-        await this.onRefresh();
-      }).open();
+      openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
     });
 
     // Progress %
@@ -569,9 +565,7 @@ export class GanttView implements SubView {
     addSubBtn.title = 'Add subtask';
     addSubBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      new TaskModal(this.plugin.app, this.plugin, this.project, null, task.id, async () => {
-        await this.onRefresh();
-      }).open();
+      openTaskModal(this.plugin, this.project, { parentId: task.id, onSave: async () => { await this.onRefresh(); } });
     });
   }
 
@@ -783,9 +777,7 @@ export class GanttView implements SubView {
     rect.setAttribute('cursor', 'pointer');
     rect.addEventListener('click', async () => {
       if (this.dragMoved) { this.dragMoved = false; return; }
-      new TaskModal(this.plugin.app, this.plugin, this.project, task, null, async () => {
-        await this.onRefresh();
-      }).open();
+      openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
     });
   }
 
@@ -836,9 +828,7 @@ export class GanttView implements SubView {
 
     // Click
     diamond.addEventListener('click', async () => {
-      new TaskModal(this.plugin.app, this.plugin, this.project, task, null, async () => {
-        await this.onRefresh();
-      }).open();
+      openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
     });
   }
 

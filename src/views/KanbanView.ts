@@ -1,7 +1,7 @@
 import type PMPlugin from '../main';
 import { Project, Task, TaskStatus, flattenTasks, makeTask, totalLoggedHours } from '../types';
-import { TaskModal } from '../modals/TaskModal';
 import { stringToColor, formatDateShort, isTaskOverdue } from '../utils';
+import { openTaskModal } from '../ui/ModalFactory';
 import type { SubView } from './SubView';
 
 export class KanbanView implements SubView {
@@ -102,9 +102,7 @@ export class KanbanView implements SubView {
     addBtn.style.setProperty('--col-color', status.color);
     addBtn.addEventListener('click', async () => {
       const task = makeTask({ status: status.id as TaskStatus });
-      new TaskModal(this.plugin.app, this.plugin, this.project, task, null, async () => {
-        await this.onRefresh();
-      }).open();
+      openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
     });
   }
 
@@ -195,9 +193,7 @@ export class KanbanView implements SubView {
 
     // Click to open
     card.addEventListener('click', async () => {
-      new TaskModal(this.plugin.app, this.plugin, this.project, task, null, async () => {
-        await this.onRefresh();
-      }).open();
+      openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
     });
   }
 

@@ -3,8 +3,7 @@ import { DEFAULT_SETTINGS, PMSettings, Project, Task, flattenTasks } from './typ
 import { ProjectStore } from './store';
 import { PMSettingTab } from './settings';
 import { ProjectView, PM_VIEW_TYPE } from './views/ProjectView';
-import { ProjectModal } from './modals/ProjectModal';
-import { TaskModal } from './modals/TaskModal';
+import { openProjectModal, openTaskModal } from './ui/ModalFactory';
 import { Notifier } from './components/Notifier';
 import { migrateProjects } from './migration';
 
@@ -55,11 +54,11 @@ export default class PMPlugin extends Plugin {
       id: 'new-project',
       name: 'Create new project',
       callback: async () => {
-        new ProjectModal(this.app, this, null, async project => {
+        openProjectModal(this, { onSave: async project => {
           await this.openProjectFile(
             this.app.vault.getAbstractFileByPath(project.filePath) as TFile,
           );
-        }).open();
+        } });
       },
     });
 
@@ -147,23 +146,22 @@ export default class PMPlugin extends Plugin {
           return;
         }
         new TaskPickerModal(this.app, flat.map(f => f.task), async (parentTask) => {
-          this.openTaskModal(project, parentTask.id);
+          this.openTaskModalForProject(project, parentTask.id);
         }).open();
       } else {
-        this.openTaskModal(project, null);
+        this.openTaskModalForProject(project, null);
       }
     }).open();
   }
 
-  private openTaskModal(project: Project, parentId: string | null): void {
-    new TaskModal(this.app, this, project, null, parentId, async () => {
+  private openTaskModalForProject(project: Project, parentId: string | null): void {
+    openTaskModal(this, project, { parentId, onSave: async () => {
       await this.store.saveProject(project);
-      // Open the project view
       const pFile = this.app.vault.getAbstractFileByPath(project.filePath);
       if (pFile instanceof TFile) {
         await this.openProjectFile(pFile);
       }
-    }).open();
+    } });
   }
 }
 
