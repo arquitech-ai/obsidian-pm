@@ -93,6 +93,19 @@ export default class PMPlugin extends Plugin {
     // Merge nested arrays carefully
     if (!saved?.statuses?.length) this.settings.statuses = DEFAULT_SETTINGS.statuses;
     if (!saved?.priorities?.length) this.settings.priorities = DEFAULT_SETTINGS.priorities;
+
+    // Migrate emoji priority icons to plain dots
+    const emojiIcons = ['🔴', '🟠', '🟡', '🟢'];
+    if (this.settings.priorities.some(p => emojiIcons.includes(p.icon))) {
+      for (const p of this.settings.priorities) {
+        if (emojiIcons.includes(p.icon)) p.icon = '●';
+      }
+      const colorMap: Record<string, string> = { '#dc2626': '#c47070', '#ea580c': '#b8a06b', '#ca8a04': '#8a94a0', '#16a34a': '#79b58d' };
+      for (const p of this.settings.priorities) {
+        if (colorMap[p.color]) p.color = colorMap[p.color];
+      }
+      await this.saveSettings();
+    }
   }
 
   async saveSettings(): Promise<void> {
