@@ -182,8 +182,8 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
       const remaining = all.filter(m => !task.assignees.includes(m));
       const addBtn = wrap.createEl('button', { text: '+ Add', cls: 'pm-prop-add-btn' });
       addBtn.addEventListener('click', e => {
-        const menu = new Menu();
         if (remaining.length) {
+          const menu = new Menu();
           for (const m of remaining) {
             menu.addItem(item => item.setTitle(m).onClick(() => {
               task.assignees.push(m);
@@ -191,13 +191,26 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
             }));
           }
           menu.addSeparator();
+          menu.addItem(item => item.setTitle('Type a name\u2026').onClick(() => showNameInput()));
+          menu.showAtMouseEvent(e as MouseEvent);
+        } else {
+          showNameInput();
         }
-        menu.addItem(item => item.setTitle('Type a name\u2026').onClick(() => {
-          const name = window.prompt('Assignee name:');
-          if (name?.trim()) { task.assignees.push(name.trim()); renderAvatars(); }
-        }));
-        menu.showAtMouseEvent(e as MouseEvent);
       });
+      const showNameInput = () => {
+        addBtn.style.display = 'none';
+        const input = wrap.createEl('input', { type: 'text', cls: 'pm-tag-input', placeholder: 'Name\u2026' });
+        input.focus();
+        const commit = () => {
+          const name = input.value.trim();
+          if (name && !task.assignees.includes(name)) {
+            task.assignees.push(name);
+          }
+          renderAvatars();
+        };
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') renderAvatars(); });
+        input.addEventListener('blur', commit);
+      };
     };
     renderAvatars();
     return wrap;
