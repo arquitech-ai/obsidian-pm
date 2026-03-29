@@ -2,6 +2,7 @@ import { App, Modal } from 'obsidian';
 import type PMPlugin from '../main';
 import { Project, Task, makeTask } from '../types';
 import { addTaskToTree, updateTaskInTree } from '../store/TaskTreeOps';
+import { renderStatusDot } from '../ui/StatusBadge';
 import { renderTaskFormFields } from './TaskFormFields';
 import { renderTimeTrackingPanel } from './TimeTrackingPanel';
 import { renderSubtasksPanel } from './SubtasksPanel';
@@ -60,9 +61,7 @@ export class TaskModal extends Modal {
 
     // ── Header ──────────────────────────────────────────────────────────────
     const header = contentEl.createDiv('pm-modal-header');
-    const statusConfig = this.plugin.settings.statuses.find(s => s.id === this.task.status);
-    const statusDot = header.createEl('span', { cls: 'pm-modal-status-dot' });
-    statusDot.style.background = statusConfig?.color ?? '#94a3b8';
+    renderStatusDot(header, this.task.status, this.plugin.settings.statuses, 'pm-modal-status-dot');
 
     const titleInput = header.createEl('input', {
       type: 'text', cls: 'pm-modal-title-input', value: this.task.title,

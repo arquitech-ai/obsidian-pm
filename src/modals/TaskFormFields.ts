@@ -5,7 +5,7 @@ import {
   CustomFieldDef,
 } from '../types';
 import { flattenTasks } from '../store/TaskTreeOps';
-import { renderPropRow } from '../ui/FormField';
+import { renderPropRow, renderProgressSlider } from '../ui/FormField';
 
 export interface TaskFormFieldsContext {
   task: Task;
@@ -102,16 +102,8 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
   // Progress (hidden for milestones)
   if (task.type !== 'milestone') {
     renderPropRow(container, 'Progress', () => {
-      const wrap = createDiv('pm-prop-value pm-prop-progress-wrap');
-      const slider = wrap.createEl('input', { type: 'range', cls: 'pm-progress-slider' });
-      slider.min = '0'; slider.max = '100'; slider.step = '5';
-      slider.value = String(task.progress);
-      const label = wrap.createEl('span', { text: `${task.progress}%`, cls: 'pm-progress-slider-label' });
-      slider.addEventListener('input', () => {
-        task.progress = parseInt(slider.value);
-        label.textContent = `${task.progress}%`;
-      });
-      return wrap;
+      const wrap = createDiv();
+      return renderProgressSlider(wrap, task.progress, v => { task.progress = v; });
     });
   }
 
