@@ -8,6 +8,7 @@ import type { SubView } from './SubView';
 export class KanbanView implements SubView {
   private dragTask: Task | null = null;
   private dragSourceCol: TaskStatus | null = null;
+  private cleanupFns: (() => void)[] = [];
 
   constructor(
     private container: HTMLElement,
@@ -16,7 +17,13 @@ export class KanbanView implements SubView {
     private onRefresh: () => Promise<void>,
   ) {}
 
+  destroy(): void {
+    for (const fn of this.cleanupFns) fn();
+    this.cleanupFns = [];
+  }
+
   render(): void {
+    this.destroy();
     this.container.empty();
     this.container.addClass('pm-kanban-view');
 
