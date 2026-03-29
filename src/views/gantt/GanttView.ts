@@ -18,6 +18,8 @@ export class GanttView implements SubView {
   private flatTasks: FlatTask[] = [];
   private cfg!: TimelineCfg;
   private drag: DragState = makeDragState();
+  private labelWidth: number = LABEL_WIDTH;
+  private cleanupFns: (() => void)[] = [];
 
   constructor(
     private container: HTMLElement,
@@ -28,7 +30,14 @@ export class GanttView implements SubView {
     this.granularity = plugin.settings.ganttGranularity;
   }
 
+  destroy(): void {
+    for (const fn of this.cleanupFns) fn();
+    this.cleanupFns = [];
+  }
+
   render(): void {
+    this.cleanupFns.forEach(fn => fn());
+    this.cleanupFns = [];
     this.container.empty();
     this.container.addClass('pm-gantt-view');
 
@@ -70,16 +79,49 @@ export class GanttView implements SubView {
 
     // Left panel: task labels
     const leftPanel = wrapper.createDiv('pm-gantt-left');
-    leftPanel.style.width = `${LABEL_WIDTH}px`;
-    leftPanel.style.minWidth = `${LABEL_WIDTH}px`;
+    leftPanel.style.width = `${this.labelWidth}px`;
+    leftPanel.style.minWidth = `${this.labelWidth}px`;
     const leftHeader = leftPanel.createDiv('pm-gantt-left-header');
     leftHeader.style.height = `${HEADER_HEIGHT}px`;
     leftHeader.createEl('span', { text: 'Task', cls: 'pm-gantt-left-header-label' });
     const leftBody = leftPanel.createDiv('pm-gantt-left-body');
 
+    // Resize handle
+    const resizeHandle = wrapper.createDiv('pm-gantt-resize-handle');
+    let resizing = false;
+    let startX = 0;
+    let startWidth = 0;
+    resizeHandle.addEventListener('mousedown', (e: MouseEvent) => {
+      e.preventDefault();
+      resizing = true;
+      startX = e.clientX;
+      startWidth = this.labelWidth;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+    const onMouseMove = (e: MouseEvent) => {
+      if (!resizing) return;
+      const newWidth = Math.max(150, Math.min(600, startWidth + (e.clientX - startX)));
+      this.labelWidth = newWidth;
+      leftPanel.style.width = `${newWidth}px`;
+      leftPanel.style.minWidth = `${newWidth}px`;
+    };
+    const onMouseUp = () => {
+      if (!resizing) return;
+      resizing = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    this.cleanupFns.push(() => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    });
+
     // Right panel: timeline
     const rightPanel = wrapper.createDiv('pm-gantt-right');
-    this.scrollEl = rightPanel.createDiv('pm-gantt-scroll');
+    this.scrollEl = rightPanel;
     const svgContainer = this.scrollEl.createDiv('pm-gantt-svg-container');
     svgContainer.style.width = `${this.cfg.totalWidth}px`;
 

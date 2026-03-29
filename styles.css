@@ -689,6 +689,21 @@
   margin-right: 8px;
 }
 
+/* Resize handle between left and right panels */
+.pm-gantt-resize-handle {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 6;
+  transition: background 0.15s;
+}
+.pm-gantt-resize-handle:hover,
+.pm-gantt-resize-handle:active {
+  background: var(--pm-accent);
+}
+
 /* Right panel: scrollable SVG */
 .pm-gantt-right {
   flex: 1;
