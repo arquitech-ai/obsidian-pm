@@ -1,4 +1,4 @@
-import { App, TFile, TFolder, normalizePath } from 'obsidian';
+import { App, Notice, TFile, TFolder, normalizePath } from 'obsidian';
 import type { Project, Task } from '../types';
 import { makeProject, makeTask } from '../types';
 import {
@@ -86,7 +86,9 @@ export class ProjectStore {
       }
 
       return project;
-    } catch {
+    } catch (e) {
+      console.error(`[PM] Failed to load project ${file.path}:`, e);
+      new Notice(`Project Manager: Failed to load "${file.basename}". Check console for details.`);
       return null;
     }
   }
@@ -141,7 +143,9 @@ export class ProjectStore {
       if (!frontmatter || frontmatter[TASK_FRONTMATTER_KEY] !== true) return { task: null, subtaskIds: [] };
 
       return hydrateTaskFromFile(frontmatter, body, file.path);
-    } catch {
+    } catch (e) {
+      console.error(`[PM] Failed to load task ${file.path}:`, e);
+      new Notice(`Project Manager: Failed to load task "${file.basename}". Check console for details.`);
       return { task: null, subtaskIds: [] };
     }
   }

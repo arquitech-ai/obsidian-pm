@@ -32,6 +32,7 @@ export async function migrateProjects(plugin: PMPlugin): Promise<void> {
       migrated++;
     } catch (e) {
       console.error(`[PM] Migration failed for ${file.path}:`, e);
+      new Notice(`Project Manager: Migration failed for "${file.basename}". Check console for details.`);
     }
   }
 
