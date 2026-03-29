@@ -43,6 +43,7 @@ export class KanbanView implements SubView {
 
     const topBar = header.createDiv('pm-kanban-col-topbar');
     topBar.style.background = status.color;
+    topBar.style.opacity = '0.5';
 
     const titleRow = header.createDiv('pm-kanban-col-title-row');
     const badge = titleRow.createEl('span', {
@@ -112,9 +113,10 @@ export class KanbanView implements SubView {
     card.dataset.taskId = task.id;
 
     const priorityConfig = this.plugin.settings.priorities.find(p => p.id === task.priority);
-    if (priorityConfig) {
+    if (priorityConfig && task.priority !== 'medium' && task.priority !== 'low') {
       const priorityBar = card.createDiv('pm-kanban-card-priority-bar');
       priorityBar.style.background = priorityConfig.color;
+      priorityBar.style.opacity = '0.5';
     }
 
     const body = card.createDiv('pm-kanban-card-body');
@@ -168,7 +170,7 @@ export class KanbanView implements SubView {
       const pbar = body.createDiv('pm-kanban-card-pbar');
       const pfill = pbar.createDiv('pm-kanban-card-pbar-fill');
       pfill.style.width = `${task.progress}%`;
-      pfill.style.background = columnColor;
+      pfill.style.background = '#8b72be';
     }
 
     // Subtask count

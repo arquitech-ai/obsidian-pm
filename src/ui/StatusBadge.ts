@@ -43,7 +43,7 @@ export function renderPriorityBadge(
     text: `${config?.icon ?? ''} ${config?.label ?? task.priority}`,
     cls: 'pm-priority-badge',
   });
-  badge.style.setProperty('--badge-color', config?.color ?? '#ca8a04');
+  badge.style.setProperty('--badge-color', config?.color ?? '#8a94a0');
   badge.addEventListener('click', e => {
     const menu = new Menu();
     for (const p of priorities) {
