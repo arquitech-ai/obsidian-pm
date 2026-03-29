@@ -136,6 +136,16 @@
 .pm-btn-primary:hover { background: linear-gradient(180deg, var(--pm-accent-dim), var(--pm-accent-dim)); box-shadow: 0 2px 8px rgba(139,114,190,0.25); }
 .pm-btn-primary:active { box-shadow: none; }
 
+.theme-light .pm-btn-primary {
+  background: transparent;
+  color: var(--pm-accent);
+  border: 1px solid color-mix(in srgb, var(--pm-accent) 40%, transparent);
+}
+.theme-light .pm-btn-primary:hover {
+  background: var(--pm-accent-light);
+  box-shadow: none;
+}
+
 .pm-btn-ghost { background: transparent; color: var(--pm-text-muted); }
 .pm-btn-ghost:hover { background: var(--pm-bg3); color: var(--pm-text); }
 
