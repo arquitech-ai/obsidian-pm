@@ -266,6 +266,16 @@ function renderTaskRow(tbody: HTMLElement, task: Task, depth: number, _parentId:
     input.addEventListener('keydown', ev => { if (ev.key === 'Enter') save(); if (ev.key === 'Escape') input.replaceWith(titleSpan); });
   });
 
+  const addSubtaskBtn = titleCell.createEl('button', {
+    cls: 'pm-add-subtask-btn',
+    attr: { 'aria-label': 'Add subtask', title: 'Add subtask' },
+  });
+  addSubtaskBtn.setText('+');
+  addSubtaskBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    openTaskModal(ctx.plugin, ctx.project, { parentId: task.id, onSave: async () => { await ctx.onRefresh(); } });
+  });
+
   if (task.type === 'milestone') titleCell.createEl('span', { text: 'M', cls: 'pm-task-badge pm-task-badge--milestone', attr: { title: 'Milestone' } });
   if (task.type === 'subtask') titleCell.createEl('span', { text: 'Sub', cls: 'pm-task-badge pm-task-badge--subtask', attr: { title: 'Subtask' } });
   if (task.recurrence) titleCell.createEl('span', { text: 'R', cls: 'pm-task-badge pm-task-badge--recurrence', attr: { title: 'Recurring' } });
