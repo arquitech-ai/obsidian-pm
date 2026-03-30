@@ -132,8 +132,12 @@ export class TaskModal extends Modal {
       text: this.isNew ? '+ Create Task' : 'Save Changes',
       cls: 'pm-btn pm-btn-primary',
     });
+    let saving = false;
     const doSave = async () => {
+      if (saving) return;
+      saving = true;
       if (!this.task.title.trim()) {
+        saving = false;
         titleInput.focus();
         titleInput.classList.add('pm-input-error');
         return;
