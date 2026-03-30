@@ -4,8 +4,7 @@ import { flattenTasks } from './store/TaskTreeOps';
 import { ProjectStore } from './store';
 import { PMSettingTab } from './settings';
 import { ProjectView, PM_VIEW_TYPE } from './views/ProjectView';
-import { openProjectModal, openTaskModal } from './ui/ModalFactory';
-import { ProjectPickerModal, TaskPickerModal } from './modals/PickerModals';
+import { openProjectModal, openTaskModal, openProjectPicker, openTaskPicker } from './ui/ModalFactory';
 import { Notifier } from './components/Notifier';
 import { migrateProjects } from './migration';
 
@@ -94,18 +93,27 @@ export default class PMPlugin extends Plugin {
     if (!saved?.statuses?.length) this.settings.statuses = DEFAULT_SETTINGS.statuses;
     if (!saved?.priorities?.length) this.settings.priorities = DEFAULT_SETTINGS.priorities;
 
-    // Migrate emoji priority icons to plain dots
-    const emojiIcons = ['🔴', '🟠', '🟡', '🟢'];
-    if (this.settings.priorities.some(p => emojiIcons.includes(p.icon))) {
+    // Migrate old icons to no icon
+    const oldPrioIcons = ['🔴', '🟠', '🟡', '🟢', '●'];
+    const oldStatusIcons = ['○', '◑', '⊘', '◎', '●', '✕'];
+    let migrated = false;
+    if (this.settings.priorities.some(p => oldPrioIcons.includes(p.icon))) {
       for (const p of this.settings.priorities) {
-        if (emojiIcons.includes(p.icon)) p.icon = '●';
+        if (oldPrioIcons.includes(p.icon)) p.icon = '';
       }
       const colorMap: Record<string, string> = { '#dc2626': '#c47070', '#ea580c': '#b8a06b', '#ca8a04': '#8a94a0', '#16a34a': '#79b58d' };
       for (const p of this.settings.priorities) {
         if (colorMap[p.color]) p.color = colorMap[p.color];
       }
-      await this.saveSettings();
+      migrated = true;
     }
+    if (this.settings.statuses.some(s => oldStatusIcons.includes(s.icon))) {
+      for (const s of this.settings.statuses) {
+        if (oldStatusIcons.includes(s.icon)) s.icon = '';
+      }
+      migrated = true;
+    }
+    if (migrated) await this.saveSettings();
   }
 
   async saveSettings(): Promise<void> {
@@ -152,7 +160,7 @@ export default class PMPlugin extends Plugin {
       this.showNotice('No projects yet. Create a project first.');
       return;
     }
-    new ProjectPickerModal(this.app, projects, async (project) => {
+    openProjectPicker(this, projects, async (project) => {
       if (mode === 'pick-parent') {
         // Pick a parent task
         const flat = flattenTasks(project.tasks);
@@ -160,13 +168,13 @@ export default class PMPlugin extends Plugin {
           this.showNotice('No tasks in this project. Create a task first.');
           return;
         }
-        new TaskPickerModal(this.app, flat.map(f => f.task), async (parentTask) => {
+        openTaskPicker(this, flat.map(f => f.task), async (parentTask) => {
           this.openTaskModalForProject(project, parentTask.id);
-        }).open();
+        });
       } else {
         this.openTaskModalForProject(project, null);
       }
-    }).open();
+    });
   }
 
   private openTaskModalForProject(project: Project, parentId: string | null): void {

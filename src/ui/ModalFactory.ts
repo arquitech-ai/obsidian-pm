@@ -3,6 +3,7 @@ import type PMPlugin from '../main';
 import type { Project, Task } from '../types';
 import { TaskModal } from '../modals/TaskModal';
 import { ProjectModal } from '../modals/ProjectModal';
+import { ProjectPickerModal, TaskPickerModal } from '../modals/PickerModals';
 
 /**
  * Centralized modal helpers. Instead of `new TaskModal(app, plugin, project, task, parentId, cb).open()`
@@ -47,4 +48,20 @@ export function openProjectModal(
     opts.project ?? null,
     opts.onSave,
   ).open();
+}
+
+export function openProjectPicker(
+  plugin: PMPlugin,
+  projects: Project[],
+  onChoose: (project: Project) => void,
+): void {
+  new ProjectPickerModal(plugin.app, projects, onChoose).open();
+}
+
+export function openTaskPicker(
+  plugin: PMPlugin,
+  tasks: Task[],
+  onChoose: (task: Task) => void,
+): void {
+  new TaskPickerModal(plugin.app, tasks, onChoose).open();
 }
