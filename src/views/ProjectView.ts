@@ -304,6 +304,10 @@ export class ProjectView extends ItemView {
     if (!this.project) return;
     this.renderToken++; // cancel any in-flight project list render
 
+    // Preserve quick-add focus across re-renders
+    const quickAddFocused = document.activeElement instanceof HTMLElement
+      && document.activeElement.matches('.pm-quick-add-input');
+
     // Save Gantt scroll position before destroying the old view
     let savedGanttScroll: { top: number; left: number } | null = null;
     if (this.currentView === 'gantt' && this.subview instanceof GanttView) {
@@ -336,6 +340,12 @@ export class ProjectView extends ItemView {
         break;
     }
     this.subview?.render();
+
+    // Restore quick-add focus after re-render
+    if (quickAddFocused) {
+      const newInput = this.contentEl2.querySelector('.pm-quick-add-input') as HTMLInputElement;
+      if (newInput) newInput.focus();
+    }
   }
 
   async refreshProject(): Promise<void> {
