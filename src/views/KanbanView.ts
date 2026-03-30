@@ -8,7 +8,6 @@ import type { SubView } from './SubView';
 
 export class KanbanView implements SubView {
   private dragTask: Task | null = null;
-  private dragSourceCol: TaskStatus | null = null;
   private cleanupFns: (() => void)[] = [];
 
   constructor(
@@ -56,7 +55,7 @@ export class KanbanView implements SubView {
 
     const titleRow = header.createDiv('pm-kanban-col-title-row');
     const badge = titleRow.createEl('span', {
-      text: `${status.icon} ${status.label}`,
+      text: [status.icon, status.label].filter(Boolean).join(' '),
       cls: 'pm-kanban-col-badge',
     });
     badge.style.color = status.color;
@@ -124,7 +123,7 @@ export class KanbanView implements SubView {
 
     // Title + type badges
     const titleRow = body.createDiv('pm-kanban-card-title-row');
-    const titleEl = titleRow.createEl('span', { text: task.title, cls: 'pm-kanban-card-title' });
+    titleRow.createEl('span', { text: task.title, cls: 'pm-kanban-card-title' });
     if (task.type === 'milestone') titleRow.createEl('span', { text: 'M', cls: 'pm-task-badge pm-task-badge--milestone', attr: { title: 'Milestone' } });
     if (task.type === 'subtask') titleRow.createEl('span', { text: 'Sub', cls: 'pm-task-badge pm-task-badge--subtask', attr: { title: 'Subtask' } });
     if (task.recurrence) titleRow.createEl('span', { text: 'R', cls: 'pm-task-badge pm-task-badge--recurrence', attr: { title: 'Recurring' } });
@@ -176,7 +175,7 @@ export class KanbanView implements SubView {
 
     // Subtask count
     if (task.subtasks.length) {
-      const sub = body.createEl('span', {
+      body.createEl('span', {
         text: `${task.subtasks.filter(s => s.status === 'done').length}/${task.subtasks.length} subtasks`,
         cls: 'pm-kanban-card-subtasks',
       });
