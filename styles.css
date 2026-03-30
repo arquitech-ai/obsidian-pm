@@ -798,29 +798,6 @@
   height: 100%;
 }
 
-.pm-kanban-toolbar {
-  flex-shrink: 0;
-  display: flex;
-  justify-content: flex-end;
-  padding: 10px 16px 0;
-}
-.pm-kanban-toolbar-add {
-  padding: 5px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: var(--pm-radius-sm);
-  border: 1px dashed var(--pm-border);
-  background: transparent;
-  color: var(--pm-text-muted);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.pm-kanban-toolbar-add:hover {
-  background: var(--pm-accent-light);
-  border-color: var(--pm-accent);
-  color: var(--pm-accent);
-}
-
 .pm-kanban-board {
   display: flex;
   gap: 14px;

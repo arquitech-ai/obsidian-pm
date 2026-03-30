@@ -28,16 +28,6 @@ export class KanbanView implements SubView {
     this.container.empty();
     this.container.addClass('pm-kanban-view');
 
-    // Toolbar with add button
-    const toolbar = this.container.createDiv('pm-kanban-toolbar');
-    const addBtn = toolbar.createEl('button', {
-      text: '+ Add Task',
-      cls: 'pm-kanban-toolbar-add',
-    });
-    addBtn.addEventListener('click', async () => {
-      openTaskModal(this.plugin, this.project, { onSave: async () => { await this.onRefresh(); } });
-    });
-
     const board = this.container.createDiv('pm-kanban-board');
 
     for (const status of this.plugin.settings.statuses) {
