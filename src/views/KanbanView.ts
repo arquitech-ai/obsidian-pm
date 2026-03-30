@@ -28,12 +28,23 @@ export class KanbanView implements SubView {
     this.container.empty();
     this.container.addClass('pm-kanban-view');
 
+    // Toolbar with add button
+    const toolbar = this.container.createDiv('pm-kanban-toolbar');
+    const addBtn = toolbar.createEl('button', {
+      text: '+ Add Task',
+      cls: 'pm-kanban-toolbar-add',
+    });
+    addBtn.addEventListener('click', async () => {
+      openTaskModal(this.plugin, this.project, { onSave: async () => { await this.onRefresh(); } });
+    });
+
     const board = this.container.createDiv('pm-kanban-board');
 
     for (const status of this.plugin.settings.statuses) {
       const tasks = this.getTasksForStatus(status.id as TaskStatus);
       this.renderColumn(board, status, tasks);
     }
+
   }
 
   private getTasksForStatus(status: TaskStatus): Task[] {
@@ -60,7 +71,8 @@ export class KanbanView implements SubView {
     });
     badge.style.color = status.color;
 
-    titleRow.createEl('span', {
+    const headerRight = titleRow.createDiv('pm-kanban-col-header-right');
+    headerRight.createEl('span', {
       text: String(tasks.length),
       cls: 'pm-kanban-col-count',
     });
@@ -104,15 +116,6 @@ export class KanbanView implements SubView {
       this.dragTask = null;
     });
 
-    // Add task button
-    const addBtn = col.createEl('button', {
-      text: '+ Add Task',
-      cls: 'pm-kanban-add-btn',
-    });
-    addBtn.style.setProperty('--col-color', status.color);
-    addBtn.addEventListener('click', async () => {
-      openTaskModal(this.plugin, this.project, { defaults: { status: status.id as TaskStatus }, onSave: async () => { await this.onRefresh(); } });
-    });
   }
 
   private renderCard(container: HTMLElement, task: Task, columnColor: string): void {

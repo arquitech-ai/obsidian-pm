@@ -786,15 +786,46 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    KANBAN BOARD
    ═══════════════════════════════════════════════════════════════════════════ */
-.pm-kanban-view {
-  height: 100%;
+/* When kanban is active, prevent parent from scrolling so flex height works */
+.pm-content:has(.pm-kanban-view) {
   overflow: hidden;
+}
+
+.pm-kanban-view {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pm-kanban-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 16px 0;
+}
+.pm-kanban-toolbar-add {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--pm-radius-sm);
+  border: 1px dashed var(--pm-border);
+  background: transparent;
+  color: var(--pm-text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pm-kanban-toolbar-add:hover {
+  background: var(--pm-accent-light);
+  border-color: var(--pm-accent);
+  color: var(--pm-accent);
 }
 
 .pm-kanban-board {
   display: flex;
   gap: 14px;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   padding: 16px;
   overflow-x: auto;
   overflow-y: hidden;
@@ -824,6 +855,11 @@
   font-size: 13px;
   font-weight: 600;
 }
+.pm-kanban-col-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .pm-kanban-col-count {
   background: var(--pm-bg3);
   border-radius: 99px;
@@ -846,6 +882,7 @@
 .pm-kanban-drop-target { background: var(--pm-accent-light); }
 
 .pm-kanban-card {
+  flex-shrink: 0;
   background: var(--pm-bg);
   border: 1px solid var(--pm-ghost-border);
   border-radius: var(--pm-radius);
@@ -896,23 +933,6 @@
 
 .pm-kanban-card-subtasks { font-size: 11px; color: var(--pm-text-muted); }
 
-.pm-kanban-add-btn {
-  margin: 6px 10px 10px;
-  padding: 7px;
-  background: transparent;
-  border: 1px dashed color-mix(in srgb, var(--col-color) 35%, var(--pm-border));
-  color: color-mix(in srgb, var(--col-color) 70%, var(--pm-text-muted));
-  border-radius: var(--pm-radius-sm);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: all 0.15s;
-}
-.pm-kanban-add-btn:hover {
-  background: color-mix(in srgb, var(--col-color) 10%, transparent);
-  border-color: var(--col-color);
-  color: var(--col-color);
-}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TASK MODAL
