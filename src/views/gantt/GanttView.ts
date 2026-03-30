@@ -20,6 +20,7 @@ export class GanttView implements SubView {
   private drag: DragState = makeDragState();
   private labelWidth: number = LABEL_WIDTH;
   private cleanupFns: (() => void)[] = [];
+  private pendingScroll: { top: number; left: number } | null = null;
 
   constructor(
     private container: HTMLElement,
@@ -33,6 +34,14 @@ export class GanttView implements SubView {
   destroy(): void {
     for (const fn of this.cleanupFns) fn();
     this.cleanupFns = [];
+  }
+
+  getScrollPosition(): { top: number; left: number } {
+    return { top: this.scrollEl?.scrollTop ?? 0, left: this.scrollEl?.scrollLeft ?? 0 };
+  }
+
+  setPendingScroll(pos: { top: number; left: number }): void {
+    this.pendingScroll = pos;
   }
 
   render(): void {
@@ -165,7 +174,15 @@ export class GanttView implements SubView {
       openTaskModal(this.plugin, this.project, { onSave: async () => { await this.onRefresh(); } });
     });
 
-    requestAnimationFrame(() => this.scrollToToday());
+    requestAnimationFrame(() => {
+      if (this.pendingScroll) {
+        this.scrollEl.scrollTop = this.pendingScroll.top;
+        this.scrollEl.scrollLeft = this.pendingScroll.left;
+        this.pendingScroll = null;
+      } else {
+        this.scrollToToday();
+      }
+    });
   }
 
   private renderTaskRows(leftBody: HTMLElement, ctx: RendererContext): void {

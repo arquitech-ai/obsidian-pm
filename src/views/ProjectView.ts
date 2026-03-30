@@ -27,6 +27,7 @@ export class ProjectView extends ItemView {
   private titleEl2!: HTMLElement;
   private keydownHandler: ((e: KeyboardEvent) => void) | null = null;
   private fileModifyRef: EventRef | null = null;
+  private renderToken = 0;
 
   constructor(leaf: WorkspaceLeaf, plugin: PMPlugin) {
     super(leaf);
@@ -127,12 +128,15 @@ export class ProjectView extends ItemView {
 
     this.contentEl2.empty();
     this.contentEl2.addClass('pm-project-list-container');
-    this.renderProjectListContent();
+    const token = ++this.renderToken;
+    this.renderProjectListContent(token);
   }
 
-  private async renderProjectListContent(): Promise<void> {
-    this.contentEl2.empty();
+  private async renderProjectListContent(token: number): Promise<void> {
     const projects = await this.plugin.store.loadAllProjects(this.plugin.settings.projectsFolder);
+    // Abort if a project view has taken over since this async load started
+    if (token !== this.renderToken) return;
+    this.contentEl2.empty();
 
     if (projects.length === 0) {
       const empty = this.contentEl2.createDiv('pm-empty-state');
@@ -181,12 +185,12 @@ export class ProjectView extends ItemView {
         const menu = new Menu();
         menu.addItem(item => item.setTitle('Edit project').setIcon('settings').onClick(async () => {
           openProjectModal(this.plugin, { project, onSave: async () => {
-            await this.renderProjectListContent();
+            await this.renderProjectListContent(++this.renderToken);
           } });
         }));
         menu.addItem(item => item.setTitle('Delete project').setIcon('trash').onClick(async () => {
           await this.plugin.store.deleteProject(project);
-          await this.renderProjectListContent();
+          await this.renderProjectListContent(++this.renderToken);
         }));
         menu.showAtMouseEvent(e);
       });
@@ -292,6 +296,14 @@ export class ProjectView extends ItemView {
 
   private renderCurrentView(): void {
     if (!this.project) return;
+    this.renderToken++; // cancel any in-flight project list render
+
+    // Save Gantt scroll position before destroying the old view
+    let savedGanttScroll: { top: number; left: number } | null = null;
+    if (this.currentView === 'gantt' && this.subview instanceof GanttView) {
+      savedGanttScroll = this.subview.getScrollPosition();
+    }
+
     this.subview?.destroy?.();
     this.contentEl2.empty();
     this.subview = null;
@@ -300,9 +312,12 @@ export class ProjectView extends ItemView {
       case 'table':
         this.subview = new TableView(this.contentEl2, this.project, this.plugin, () => this.refreshProject());
         break;
-      case 'gantt':
-        this.subview = new GanttView(this.contentEl2, this.project, this.plugin, () => this.refreshProject());
+      case 'gantt': {
+        const gantt = new GanttView(this.contentEl2, this.project, this.plugin, () => this.refreshProject());
+        if (savedGanttScroll) gantt.setPendingScroll(savedGanttScroll);
+        this.subview = gantt;
         break;
+      }
       case 'kanban':
         this.subview = new KanbanView(this.contentEl2, this.project, this.plugin, () => this.refreshProject());
         break;
