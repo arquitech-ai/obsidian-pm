@@ -92,7 +92,7 @@ export class PMSettingTab extends PluginSettingTab {
       cls: 'pm-settings-desc',
       text: 'Global list of people available as assignees across all projects.',
     });
-    membersDesc.style.marginBottom = '8px';
+    // margin handled by .pm-settings-desc CSS class
 
     const membersContainer = containerEl.createDiv('pm-settings-members');
     this.renderMembersList(membersContainer);
@@ -125,7 +125,6 @@ export class PMSettingTab extends PluginSettingTab {
       const row = container.createDiv('pm-settings-member-row');
       const input = row.createEl('input', { type: 'text', value: m });
       input.placeholder = 'Name';
-      input.style.flex = '1';
       input.addEventListener('change', async () => {
         this.plugin.settings.globalTeamMembers[i] = input.value;
         await this.plugin.saveSettings();
@@ -146,15 +145,12 @@ export class PMSettingTab extends PluginSettingTab {
       const row = container.createDiv('pm-settings-status-row');
 
       const icon = row.createEl('input', { type: 'text', value: s.icon });
-      icon.style.width = '40px';
-      icon.style.textAlign = 'center';
       icon.addEventListener('change', async () => {
         this.plugin.settings.statuses[i].icon = icon.value;
         await this.plugin.saveSettings();
       });
 
       const label = row.createEl('input', { type: 'text', value: s.label });
-      label.style.flex = '1';
       label.addEventListener('change', async () => {
         this.plugin.settings.statuses[i].label = label.value;
         await this.plugin.saveSettings();
