@@ -32,12 +32,12 @@ export function renderFilterBar(container: HTMLElement, ctx: FilterBarContext): 
 
   // Status filter
   renderFilterDropdown(bar, 'Status', ctx.filter.statuses,
-    ctx.plugin.settings.statuses.map(s => ({ id: s.id, label: `${s.icon} ${s.label}` })),
+    ctx.plugin.settings.statuses.map(s => ({ id: s.id, label: [s.icon, s.label].filter(Boolean).join(' ') })),
     (selected) => { ctx.filter.statuses = selected as TaskStatus[]; ctx.refreshTable(); });
 
   // Priority filter
   renderFilterDropdown(bar, 'Priority', ctx.filter.priorities,
-    ctx.plugin.settings.priorities.map(p => ({ id: p.id, label: `${p.icon} ${p.label}` })),
+    ctx.plugin.settings.priorities.map(p => ({ id: p.id, label: [p.icon, p.label].filter(Boolean).join(' ') })),
     (selected) => { ctx.filter.priorities = selected as TaskPriority[]; ctx.refreshTable(); });
 
   // Assignee filter

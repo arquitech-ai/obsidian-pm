@@ -111,19 +111,19 @@ export interface PMSettings {
 // ─── Defaults ────────────────────────────────────────────────────────────────
 
 export const DEFAULT_STATUSES: StatusConfig[] = [
-  { id: 'todo',        label: 'To Do',       color: '#8a94a0', icon: '○' },
-  { id: 'in-progress', label: 'In Progress', color: '#8b72be', icon: '◑' },
-  { id: 'blocked',     label: 'Blocked',     color: '#c47070', icon: '⊘' },
-  { id: 'review',      label: 'In Review',   color: '#b8a06b', icon: '◎' },
-  { id: 'done',        label: 'Done',        color: '#79b58d', icon: '●' },
-  { id: 'cancelled',   label: 'Cancelled',   color: '#767491', icon: '✕' },
+  { id: 'todo',        label: 'To Do',       color: '#8a94a0', icon: '' },
+  { id: 'in-progress', label: 'In Progress', color: '#8b72be', icon: '' },
+  { id: 'blocked',     label: 'Blocked',     color: '#c47070', icon: '' },
+  { id: 'review',      label: 'In Review',   color: '#b8a06b', icon: '' },
+  { id: 'done',        label: 'Done',        color: '#79b58d', icon: '' },
+  { id: 'cancelled',   label: 'Cancelled',   color: '#767491', icon: '' },
 ];
 
 export const DEFAULT_PRIORITIES: PriorityConfig[] = [
-  { id: 'critical', label: 'Critical', color: '#c47070', icon: '●' },
-  { id: 'high',     label: 'High',     color: '#b8a06b', icon: '●' },
-  { id: 'medium',   label: 'Medium',   color: '#8a94a0', icon: '●' },
-  { id: 'low',      label: 'Low',      color: '#79b58d', icon: '●' },
+  { id: 'critical', label: 'Critical', color: '#c47070', icon: '' },
+  { id: 'high',     label: 'High',     color: '#b8a06b', icon: '' },
+  { id: 'medium',   label: 'Medium',   color: '#8a94a0', icon: '' },
+  { id: 'low',      label: 'Low',      color: '#79b58d', icon: '' },
 ];
 
 export const DEFAULT_SETTINGS: PMSettings = {

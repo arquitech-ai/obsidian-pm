@@ -29,12 +29,12 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
     const statusConfig = plugin.settings.statuses.find(s => s.id === task.status);
     const val = createEl('button', { cls: 'pm-prop-value pm-prop-value--badge' });
     val.style.setProperty('--badge-color', statusConfig?.color ?? COLOR_MUTED);
-    val.setText(`${statusConfig?.icon ?? ''} ${statusConfig?.label ?? task.status}`);
+    val.setText([statusConfig?.icon, statusConfig?.label ?? task.status].filter(Boolean).join(' '));
     val.addEventListener('click', e => {
       const menu = new Menu();
       for (const s of plugin.settings.statuses) {
         menu.addItem(item => item
-          .setTitle(`${s.icon} ${s.label}`)
+          .setTitle([s.icon, s.label].filter(Boolean).join(' '))
           .setChecked(s.id === task.status)
           .onClick(() => { task.status = s.id as TaskStatus; rerender(); }));
       }
@@ -48,12 +48,12 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
     const prioConfig = plugin.settings.priorities.find(p => p.id === task.priority);
     const val = createEl('button', { cls: 'pm-prop-value pm-prop-value--badge' });
     val.style.setProperty('--badge-color', prioConfig?.color ?? COLOR_MUTED);
-    val.setText(`${prioConfig?.icon ?? ''} ${prioConfig?.label ?? task.priority}`);
+    val.setText([prioConfig?.icon, prioConfig?.label ?? task.priority].filter(Boolean).join(' '));
     val.addEventListener('click', e => {
       const menu = new Menu();
       for (const p of plugin.settings.priorities) {
         menu.addItem(item => item
-          .setTitle(`${p.icon} ${p.label}`)
+          .setTitle([p.icon, p.label].filter(Boolean).join(' '))
           .setChecked(p.id === task.priority)
           .onClick(() => { task.priority = p.id as TaskPriority; rerender(); }));
       }

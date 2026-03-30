@@ -13,7 +13,7 @@ export function renderStatusBadge(
 ): HTMLElement {
   const config = statuses.find(s => s.id === task.status);
   const badge = container.createEl('span', {
-    text: `${config?.icon ?? ''} ${config?.label ?? task.status}`,
+    text: [config?.icon, config?.label ?? task.status].filter(Boolean).join(' '),
     cls: 'pm-status-badge',
   });
   badge.style.setProperty('--badge-color', config?.color ?? COLOR_MUTED);
@@ -21,7 +21,7 @@ export function renderStatusBadge(
     const menu = new Menu();
     for (const s of statuses) {
       menu.addItem(item => item
-        .setTitle(`${s.icon} ${s.label}`)
+        .setTitle([s.icon, s.label].filter(Boolean).join(' '))
         .setChecked(s.id === task.status)
         .onClick(() => onChange(s.id as TaskStatus)));
     }
@@ -41,7 +41,7 @@ export function renderPriorityBadge(
 ): HTMLElement {
   const config = priorities.find(p => p.id === task.priority);
   const badge = container.createEl('span', {
-    text: `${config?.icon ?? ''} ${config?.label ?? task.priority}`,
+    text: [config?.icon, config?.label ?? task.priority].filter(Boolean).join(' '),
     cls: 'pm-priority-badge',
   });
   badge.style.setProperty('--badge-color', config?.color ?? COLOR_MUTED_ALT);
@@ -49,7 +49,7 @@ export function renderPriorityBadge(
     const menu = new Menu();
     for (const p of priorities) {
       menu.addItem(item => item
-        .setTitle(`${p.icon} ${p.label}`)
+        .setTitle([p.icon, p.label].filter(Boolean).join(' '))
         .setChecked(p.id === task.priority)
         .onClick(() => onChange(p.id as TaskPriority)));
     }
