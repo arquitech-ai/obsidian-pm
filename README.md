@@ -4,21 +4,28 @@
 
 Table views, Gantt charts, Kanban boards — all stored as plain Markdown with YAML frontmatter. No external services. No sync subscriptions. Your data stays yours.
 
----
+<img width="1422" height="791" alt="Screenshot 2026-03-31 at 12 52 14" src="https://github.com/user-attachments/assets/ca6bc67f-e656-45be-b93a-17410555ec1a" />
 
 ## Views
 
 **Table** — Sortable, filterable task grid with inline editing. Save custom filter/sort combinations as named views. Add subtasks inline from any row.
 
+<video src="https://github.com/user-attachments/assets/104bd993-d4c1-42e7-9d6a-ae46fd7ce6a8" autoplay loop muted playsinline width="400"></video>
+
 **Gantt** — Timeline view with draggable bars, dependency visualization, and configurable granularity (day / week / month / quarter). See the full project at a glance.
+
+<video src="https://github.com/user-attachments/assets/916f7100-44ef-401c-abb3-e003a0f7720a" autoplay loop muted playsinline width="400"></video>
 
 **Kanban** — Card-based board grouped by status. Drag cards between columns to update status in one move.
 
----
+<video src="https://github.com/user-attachments/assets/316fc43b-6915-499a-a6ad-0680c462d014" autoplay loop muted playsinline width="400"></video>
 
 ## What you can track
 
-Each task supports: title, description, status, priority, start date, due date, progress (0–100%), time estimate, time logs, assignees, tags, subtasks, dependencies, and recurrence rules.
+Each task stored in your vault as a .md file and supports: title, description, status, priority, start date, due date, progress (0–100%), time estimate, time logs, assignees, tags, subtasks, dependencies, and recurrence rules.
+
+<img width="1422" height="820" alt="Screenshot 2026-03-31 at 12 56 14" src="https://github.com/user-attachments/assets/28f0f768-bb80-4128-b3ce-3d4090b8032f" />
+
 
 Projects support custom fields (text, number, date, select, multi-select, checkbox, URL, person), a shared team roster, and saved views per project.
 
