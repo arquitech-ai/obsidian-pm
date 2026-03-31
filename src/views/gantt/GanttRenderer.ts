@@ -19,6 +19,7 @@ export interface RendererContext {
   flatTasks: FlatTask[];
   drag: DragState;
   onRefresh: () => Promise<void>;
+  cleanupFns: (() => void)[];
 }
 
 // ─── Timeline header ───────────────────────────────────────────────────────
@@ -374,7 +375,8 @@ export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: n
     handle.setAttribute('rx', '3'); handle.setAttribute('ry', '3');
     handle.setAttribute('class', 'pm-gantt-drag-handle');
     handle.setAttribute('cursor', 'ew-resize');
-    attachDragHandle(handle, side, task, rect, x, width, ctx.cfg, ctx.drag, ctx.plugin, ctx.project, ctx.onRefresh);
+    const cleanup = attachDragHandle(handle, side, task, rect, x, width, ctx.cfg, ctx.drag, ctx.plugin, ctx.project, ctx.onRefresh);
+    ctx.cleanupFns.push(cleanup);
     barGroup.appendChild(handle);
   }
 

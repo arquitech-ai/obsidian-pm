@@ -40,7 +40,9 @@ export function attachDragHandle(
   plugin: PMPlugin,
   project: Project,
   onRefresh: () => Promise<void>,
-): void {
+): () => void {
+  let activeCleanup: (() => void) | null = null;
+
   handle.addEventListener('mousedown', (e: MouseEvent) => {
     e.stopPropagation(); e.preventDefault();
     drag.isDragging = true;
@@ -72,6 +74,7 @@ export function attachDragHandle(
     const onUp = async () => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
+      activeCleanup = null;
       if (!drag.isDragging || !drag.dragTask || !drag.dragBarEl) return;
       drag.isDragging = false;
       if (!drag.dragMoved) return;
@@ -101,5 +104,16 @@ export function attachDragHandle(
 
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+    activeCleanup = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
   });
+
+  return () => {
+    if (activeCleanup) {
+      activeCleanup();
+      activeCleanup = null;
+    }
+  };
 }

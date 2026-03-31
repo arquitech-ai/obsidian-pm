@@ -214,6 +214,7 @@ export class GanttView implements SubView {
       flatTasks: this.flatTasks,
       drag: this.drag,
       onRefresh: this.onRefresh,
+      cleanupFns: this.cleanupFns,
     };
   }
 
