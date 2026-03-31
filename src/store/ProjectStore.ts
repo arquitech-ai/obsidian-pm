@@ -216,6 +216,19 @@ export class ProjectStore {
     return task;
   }
 
+  async insertTask(project: Project, task: Task, parentId: string | null = null): Promise<void> {
+    addTaskToTree(project.tasks, task, parentId);
+    await this.saveProject(project);
+  }
+
+  async moveTask(project: Project, taskId: string, newParentId: string | null): Promise<void> {
+    const task = findTask(project.tasks, taskId);
+    if (!task) return;
+    deleteTaskFromTree(project.tasks, taskId);
+    addTaskToTree(project.tasks, task, newParentId);
+    await this.saveProject(project);
+  }
+
   async updateTask(project: Project, taskId: string, patch: Partial<Task>): Promise<void> {
     updateTaskInTree(project.tasks, taskId, patch);
     await this.saveProject(project);

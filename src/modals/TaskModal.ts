@@ -1,7 +1,7 @@
 import { App, Modal } from 'obsidian';
 import type PMPlugin from '../main';
 import { Project, Task, makeTask } from '../types';
-import { addTaskToTree, updateTaskInTree, deleteTaskFromTree, flattenTasks } from '../store/TaskTreeOps';
+import { flattenTasks } from '../store/TaskTreeOps';
 import { renderStatusDot } from '../ui/StatusBadge';
 import { renderTaskFormFields } from './TaskFormFields';
 import { renderTimeTrackingPanel } from './TimeTrackingPanel';
@@ -51,18 +51,21 @@ export class TaskModal extends Modal {
 
   async onClose(): Promise<void> {
     if (!this.cancelled && !this.saved && this.task.title.trim()) {
-      if (this.isNew) {
-        addTaskToTree(this.project.tasks, this.task, this.parentId);
-      } else if (this.parentId !== this.originalParentId) {
-        deleteTaskFromTree(this.project.tasks, this.task.id);
-        addTaskToTree(this.project.tasks, this.task, this.parentId);
-      } else {
-        updateTaskInTree(this.project.tasks, this.task.id, this.task);
-      }
-      await this.plugin.store.saveProject(this.project);
-      await this.onSave(this.task);
+      await this.persistTask();
     }
     this.contentEl.empty();
+  }
+
+  private async persistTask(): Promise<void> {
+    if (this.isNew) {
+      await this.plugin.store.insertTask(this.project, this.task, this.parentId);
+    } else if (this.parentId !== this.originalParentId) {
+      await this.plugin.store.updateTask(this.project, this.task.id, this.task);
+      await this.plugin.store.moveTask(this.project, this.task.id, this.parentId);
+    } else {
+      await this.plugin.store.updateTask(this.project, this.task.id, this.task);
+    }
+    await this.onSave(this.task);
   }
 
   private render(): void {
@@ -153,16 +156,7 @@ export class TaskModal extends Modal {
         titleInput.classList.add('pm-input-error');
         return;
       }
-      if (this.isNew) {
-        addTaskToTree(this.project.tasks, this.task, this.parentId);
-      } else if (this.parentId !== this.originalParentId) {
-        deleteTaskFromTree(this.project.tasks, this.task.id);
-        addTaskToTree(this.project.tasks, this.task, this.parentId);
-      } else {
-        updateTaskInTree(this.project.tasks, this.task.id, this.task);
-      }
-      await this.plugin.store.saveProject(this.project);
-      await this.onSave(this.task);
+      await this.persistTask();
       this.saved = true;
       this.close();
     };
