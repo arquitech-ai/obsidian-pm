@@ -1,7 +1,8 @@
+import { Notice } from 'obsidian';
 import type PMPlugin from '../../main';
 import type { Project } from '../../types';
 import { makeTask } from '../../types';
-import { addTaskToTree } from '../../store/TaskTreeOps';
+import { addTaskToTree, deleteTaskFromTree } from '../../store/TaskTreeOps';
 
 export function renderQuickAddBar(
   container: HTMLElement,
@@ -21,7 +22,15 @@ export function renderQuickAddBar(
       if (!title) return;
       const task = makeTask({ title });
       addTaskToTree(project.tasks, task, null);
-      await plugin.store.saveProject(project);
+      try {
+        await plugin.store.saveProject(project);
+      } catch (err) {
+        deleteTaskFromTree(project.tasks, task.id);
+        new Notice('Failed to save task. Please try again.');
+        console.error('QuickAddBar: save failed', err);
+        await onRefresh();
+        return;
+      }
       input.value = '';
       await onRefresh();
     } else if (e.key === 'Escape') {

@@ -1,3 +1,4 @@
+import { Notice } from 'obsidian';
 import type PMPlugin from '../../main';
 import type { Project, Task } from '../../types';
 import type { TimelineCfg } from './TimelineConfig';
@@ -86,7 +87,15 @@ export function attachDragHandle(
         endD.setDate(endD.getDate() - 1);
         patch.due = dateToIso(endD);
       }
-      await plugin.store.updateTask(project, drag.dragTask.id, patch);
+      try {
+        await plugin.store.updateTask(project, drag.dragTask.id, patch);
+      } catch (err) {
+        drag.dragBarEl.setAttribute('x', String(drag.dragInitialX));
+        drag.dragBarEl.setAttribute('width', String(drag.dragInitialW));
+        new Notice('Failed to save date change. Please try again.');
+        console.error('GanttDragHandler: save failed', err);
+        return;
+      }
       await onRefresh();
     };
 
