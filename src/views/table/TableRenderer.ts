@@ -27,6 +27,7 @@ export interface TableContext {
   state: TableState;
   onRefresh: () => Promise<void>;
   onSelectionChange: () => void;
+  onBulkDelete: () => void;
 }
 
 export function renderTable(ctx: TableContext): void {
@@ -215,8 +216,12 @@ export function handleTableKeyDown(e: KeyboardEvent, ctx: TableContext): void {
     }
     case 'Delete':
     case 'Backspace': {
-      if (!ctx.state.selectedTaskId) return;
       e.preventDefault();
+      if (ctx.state.selectedTaskIds.size > 0) {
+        ctx.onBulkDelete();
+        break;
+      }
+      if (!ctx.state.selectedTaskId) return;
       const id = ctx.state.selectedTaskId;
       const currentIdx = rows.indexOf(id);
       const nextIdx = currentIdx < rows.length - 1 ? currentIdx + 1 : currentIdx - 1;

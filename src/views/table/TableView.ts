@@ -2,7 +2,6 @@ import { Notice } from 'obsidian';
 import type PMPlugin from '../../main';
 import type { Project, FilterState } from '../../types';
 import { makeDefaultFilter } from '../../types';
-import { deleteTaskFromTree } from '../../store/TaskTreeOps';
 import type { SubView } from '../SubView';
 import { renderQuickAddBar, focusQuickAdd } from './QuickAddBar';
 import { renderSavedViewsBar } from './SavedViewsBar';
@@ -100,27 +99,21 @@ export class TableView implements SubView {
     }
   }
 
-  private async handleBulkAction(action: BulkAction): Promise<void> {
+  async handleBulkAction(action: BulkAction): Promise<void> {
     const ids = [...this.state.selectedTaskIds];
     if (!ids.length) return;
 
     try {
       switch (action.type) {
         case 'set-status':
-          for (const id of ids) {
-            await this.plugin.store.updateTask(this.project, id, { status: action.status });
-          }
+          await this.plugin.store.updateTasks(this.project, ids, { status: action.status });
           break;
         case 'set-priority':
-          for (const id of ids) {
-            await this.plugin.store.updateTask(this.project, id, { priority: action.priority });
-          }
+          await this.plugin.store.updateTasks(this.project, ids, { priority: action.priority });
           break;
         case 'delete':
-          for (const id of ids) {
-            deleteTaskFromTree(this.project.tasks, id);
-          }
-          await this.plugin.store.saveProject(this.project);
+          if (!confirm(`Delete ${ids.length} task${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+          await this.plugin.store.deleteTasks(this.project, ids);
           break;
       }
       this.state.selectedTaskIds.clear();
@@ -145,6 +138,7 @@ export class TableView implements SubView {
       state: this.state,
       onRefresh: this.onRefresh,
       onSelectionChange: () => this.updateBulkBar(),
+      onBulkDelete: () => this.handleBulkAction({ type: 'delete' }),
     };
   }
 }
