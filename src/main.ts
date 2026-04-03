@@ -6,7 +6,7 @@ import { PMSettingTab } from './settings';
 import { ProjectView, PM_VIEW_TYPE } from './views/ProjectView';
 import { openProjectModal, openTaskModal, openProjectPicker, openTaskPicker } from './ui/ModalFactory';
 import { Notifier } from './components/Notifier';
-import { migrateProjects, migrateSettingsIcons } from './migration';
+import { migrateProjects } from './migration';
 
 export default class PMPlugin extends Plugin {
   settings: PMSettings = { ...DEFAULT_SETTINGS };
@@ -93,8 +93,6 @@ export default class PMPlugin extends Plugin {
     if (!saved?.statuses?.length) this.settings.statuses = DEFAULT_SETTINGS.statuses;
     if (!saved?.priorities?.length) this.settings.priorities = DEFAULT_SETTINGS.priorities;
 
-    // Migrate old emoji icons to empty strings
-    if (migrateSettingsIcons(this.settings)) await this.saveSettings();
   }
 
   async saveSettings(): Promise<void> {
