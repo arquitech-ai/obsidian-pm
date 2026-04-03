@@ -29,7 +29,7 @@ function makeInlineEdit(opts: InlineEditOpts): void {
     if (saved) return;
     saved = true;
     const newVal = input.value.trim();
-    if (newVal && newVal !== value) {
+    if (newVal !== value) {
       await onSave(newVal);
     } else {
       input.replaceWith(display);
@@ -161,9 +161,30 @@ function renderAssigneesCell(row: HTMLElement, task: Task): void {
   }
 }
 
+function startDueDateEdit(cell: HTMLElement, display: HTMLElement, task: Task, ctx: TableContext): void {
+  makeInlineEdit({
+    container: cell,
+    display,
+    inputType: 'date',
+    value: task.due,
+    onSave: async (val) => {
+      await ctx.plugin.store.updateTask(ctx.project, task.id, { due: val });
+      await ctx.onRefresh();
+    },
+  });
+}
+
 function renderDueDateCell(row: HTMLElement, task: Task, ctx: TableContext): void {
   const cell = row.createEl('td', { cls: 'pm-table-cell' });
-  if (!task.due) return;
+
+  if (!task.due) {
+    const placeholder = cell.createEl('span', { text: '\u2014', cls: 'pm-due-placeholder' });
+    placeholder.addEventListener('click', e => {
+      e.stopPropagation();
+      startDueDateEdit(cell, placeholder, task, ctx);
+    });
+    return;
+  }
 
   const dueDate = new Date(task.due);
   const today = todayMidnight();
@@ -177,18 +198,9 @@ function renderDueDateCell(row: HTMLElement, task: Task, ctx: TableContext): voi
   if (overdue) chip.addClass('pm-due-chip--overdue');
   else if (isNear) chip.addClass('pm-due-chip--near');
 
-  chip.addEventListener('dblclick', e => {
+  chip.addEventListener('click', e => {
     e.stopPropagation();
-    makeInlineEdit({
-      container: cell,
-      display: chip,
-      inputType: 'date',
-      value: task.due,
-      onSave: async (val) => {
-        await ctx.plugin.store.updateTask(ctx.project, task.id, { due: val });
-        await ctx.onRefresh();
-      },
-    });
+    startDueDateEdit(cell, chip, task, ctx);
   });
 }
 
@@ -255,7 +267,7 @@ export function renderTaskRow(tbody: HTMLElement, task: Task, depth: number, _pa
 
   row.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
-    if (target.closest('button, input, .pm-status-badge, .pm-priority-badge, .pm-task-title-text')) return;
+    if (target.closest('button, input, .pm-status-badge, .pm-priority-badge, .pm-task-title-text, .pm-due-chip, .pm-due-placeholder')) return;
     ctx.state.selectedTaskId = task.id;
     updateSelectedRow(ctx.state);
   });

@@ -502,9 +502,21 @@
   background: var(--pm-bg2);
   color: var(--pm-text-muted);
   white-space: nowrap;
+  cursor: pointer;
 }
+.pm-due-chip:hover { background: var(--pm-bg3); }
 .pm-due-chip--near { background: rgba(245,158,11,0.15); color: var(--pm-warning); }
+.pm-due-chip--near:hover { background: rgba(245,158,11,0.22); }
 .pm-due-chip--overdue { background: rgba(196,112,112,0.15); color: var(--pm-danger); font-weight: 600; }
+.pm-due-chip--overdue:hover { background: rgba(196,112,112,0.22); }
+.pm-due-placeholder {
+  color: var(--pm-text-faint);
+  cursor: pointer;
+  padding: 3px 7px;
+  border-radius: var(--pm-radius-sm);
+  font-size: 12px;
+}
+.pm-due-placeholder:hover { background: var(--pm-bg3); color: var(--pm-text-muted); }
 
 /* Progress */
 .pm-progress-wrap { display: flex; align-items: center; gap: 8px; }
