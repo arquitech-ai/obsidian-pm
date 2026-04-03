@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, TFile, Menu, EventRef } from 'obsidian';
+import { ItemView, WorkspaceLeaf, TFile, EventRef } from 'obsidian';
 import type PMPlugin from '../main';
 import { Project, ViewMode } from '../types';
 import { truncateTitle } from '../utils';
@@ -8,6 +8,8 @@ import type { TableViewState } from './table/TableView';
 import { GanttView } from './gantt/GanttView';
 import { KanbanView } from './KanbanView';
 import { openProjectModal, openTaskModal } from '../ui/ModalFactory';
+import { renderProjectListToolbar, renderProjectListContent } from './ProjectListRenderer';
+import type { ProjectListContext } from './ProjectListRenderer';
 
 export const PM_VIEW_TYPE = 'pm-project-view';
 
@@ -120,96 +122,24 @@ export class ProjectView extends ItemView {
 
   // ─── Project list (when no file is open) ───────────────────────────────────
 
+  private getProjectListCtx(): ProjectListContext {
+    return {
+      plugin: this.plugin,
+      toolbarEl: this.toolbarEl,
+      contentEl: this.contentEl2,
+      renderToken: this.renderToken,
+      openProjectFile: (file: TFile) => this.plugin.openProjectFile(file),
+    };
+  }
+
   private renderProjectList(): void {
-    this.toolbarEl.empty();
-    this.toolbarEl.createEl('h2', { text: '📋 Project Manager', cls: 'pm-toolbar-title' });
-
-    const newBtn = this.toolbarEl.createEl('button', { text: '+ New Project', cls: 'pm-btn pm-btn-primary' });
-    newBtn.addEventListener('click', async () => {
-      openProjectModal(this.plugin, { onSave: async project => {
-        const file = this.app.vault.getAbstractFileByPath(project.filePath) as TFile;
-        if (file) await this.plugin.openProjectFile(file);
-      } });
-    });
-
+    const ctx = this.getProjectListCtx();
+    renderProjectListToolbar(ctx);
     this.contentEl2.empty();
     this.contentEl2.addClass('pm-project-list-container');
-    const token = ++this.renderToken;
-    this.renderProjectListContent(token);
-  }
-
-  private async renderProjectListContent(token: number): Promise<void> {
-    const projects = await this.plugin.store.loadAllProjects(this.plugin.settings.projectsFolder);
-    // Abort if a project view has taken over since this async load started
-    if (token !== this.renderToken) return;
-    this.contentEl2.empty();
-
-    if (projects.length === 0) {
-      const empty = this.contentEl2.createDiv('pm-empty-state');
-      empty.createEl('div', { text: '📋', cls: 'pm-empty-icon' });
-      empty.createEl('h3', { text: 'No projects yet' });
-      empty.createEl('p', { text: 'Create your first project to get started.' });
-      const btn = empty.createEl('button', { text: '+ New Project', cls: 'pm-btn pm-btn-primary' });
-      btn.addEventListener('click', async () => {
-        openProjectModal(this.plugin, { onSave: async project => {
-          const file = this.app.vault.getAbstractFileByPath(project.filePath) as TFile;
-          if (file) await this.plugin.openProjectFile(file);
-        } });
-      });
-      return;
-    }
-
-    const grid = this.contentEl2.createDiv('pm-project-grid');
-    for (const project of projects) {
-      const card = grid.createDiv('pm-project-card');
-      card.style.setProperty('--pm-project-color', project.color);
-
-      const colorBar = card.createDiv('pm-project-card-bar');
-      colorBar.style.background = project.color;
-
-      const body = card.createDiv('pm-project-card-body');
-      body.createEl('div', { text: project.icon, cls: 'pm-project-card-icon' });
-      body.createEl('h3', { text: project.title, cls: 'pm-project-card-title' });
-
-      const meta = body.createDiv('pm-project-card-meta');
-      const total = this.countTasks(project.tasks, false);
-      const done = this.countTasks(project.tasks, true);
-      meta.createEl('span', { text: `${done}/${total} tasks`, cls: 'pm-project-card-tasks' });
-
-      const progressBar = body.createDiv('pm-project-card-progress');
-      const fill = progressBar.createDiv('pm-project-card-progress-fill');
-      fill.style.width = total ? `${Math.round((done / total) * 100)}%` : '0%';
-      fill.style.background = project.color;
-
-      card.addEventListener('click', async () => {
-        const file = this.app.vault.getAbstractFileByPath(project.filePath);
-        if (file instanceof TFile) await this.plugin.openProjectFile(file);
-      });
-
-      // Context menu
-      card.addEventListener('contextmenu', (e: MouseEvent) => {
-        const menu = new Menu();
-        menu.addItem(item => item.setTitle('Edit project').setIcon('settings').onClick(async () => {
-          openProjectModal(this.plugin, { project, onSave: async () => {
-            await this.renderProjectListContent(++this.renderToken);
-          } });
-        }));
-        menu.addItem(item => item.setTitle('Delete project').setIcon('trash').onClick(async () => {
-          await this.plugin.store.deleteProject(project);
-          await this.renderProjectListContent(++this.renderToken);
-        }));
-        menu.showAtMouseEvent(e);
-      });
-    }
-  }
-
-  private countTasks(tasks: import('../types').Task[], doneOnly: boolean): number {
-    let n = 0;
-    for (const t of tasks) {
-      if (!doneOnly || t.status === 'done') n++;
-      n += this.countTasks(t.subtasks, doneOnly);
-    }
-    return n;
+    ++this.renderToken;
+    ctx.renderToken = this.renderToken;
+    renderProjectListContent(ctx);
   }
 
   // ─── Project view ──────────────────────────────────────────────────────────
