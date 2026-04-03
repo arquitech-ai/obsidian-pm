@@ -262,6 +262,36 @@
 }
 .pm-quick-add-input::placeholder { color: var(--pm-text-faint); }
 
+/* ── Bulk Action Bar ─────────────────────────────────────────────────────── */
+.pm-bulk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: color-mix(in srgb, var(--pm-accent) 8%, var(--pm-surface-raised));
+  flex-shrink: 0;
+  animation: pm-bulk-bar-in 0.15s ease-out;
+}
+@keyframes pm-bulk-bar-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pm-bulk-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pm-bulk-bar-right {
+  display: flex;
+  align-items: center;
+}
+.pm-bulk-bar-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pm-accent);
+  padding-right: 4px;
+}
+
 /* ── Saved Views Bar ──────────────────────────────────────────────────────── */
 .pm-saved-views-bar {
   display: flex;
@@ -411,6 +441,8 @@
   flex-wrap: wrap;
   min-width: 180px;
 }
+.pm-table-cell-select { width: 32px; text-align: center; padding: 0 4px; vertical-align: middle; }
+.pm-table-cell-select input[type="checkbox"] { margin: 0; cursor: pointer; }
 .pm-table-cell-expand { width: 32px; text-align: center; padding: 0; }
 .pm-table-cell-progress { min-width: 120px; }
 .pm-table-cell-actions { width: 40px; text-align: center; }

@@ -49,6 +49,23 @@ function makeInlineEdit(opts: InlineEditOpts): void {
 
 // ─── Cell renderers ────────────────────────────────────────────────────────────
 
+function renderSelectCell(row: HTMLElement, task: Task, ctx: TableContext): void {
+  const cell = row.createEl('td', { cls: 'pm-table-cell-select' });
+  const cb = cell.createEl('input', { type: 'checkbox', cls: 'pm-select-checkbox' });
+  cb.checked = ctx.state.selectedTaskIds.has(task.id);
+  cb.addEventListener('change', (e) => {
+    e.stopPropagation();
+    if (cb.checked) {
+      ctx.state.selectedTaskIds.add(task.id);
+    } else {
+      ctx.state.selectedTaskIds.delete(task.id);
+    }
+    updateSelectAllCheckbox(ctx.state);
+    ctx.onSelectionChange();
+  });
+  cb.addEventListener('click', (e) => e.stopPropagation());
+}
+
 function renderExpandCell(row: HTMLElement, task: Task, ctx: TableContext): void {
   const cell = row.createEl('td', { cls: 'pm-table-cell-expand' });
   if (task.subtasks.length > 0) {
@@ -267,11 +284,12 @@ export function renderTaskRow(tbody: HTMLElement, task: Task, depth: number, _pa
 
   row.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
-    if (target.closest('button, input, .pm-status-badge, .pm-priority-badge, .pm-task-title-text, .pm-due-chip, .pm-due-placeholder')) return;
+    if (target.closest('button, input, .pm-status-badge, .pm-priority-badge, .pm-task-title-text, .pm-due-chip, .pm-due-placeholder, .pm-table-cell-select')) return;
     ctx.state.selectedTaskId = task.id;
     updateSelectedRow(ctx.state);
   });
 
+  renderSelectCell(row, task, ctx);
   renderExpandCell(row, task, ctx);
   renderTitleCell(row, task, depth, ctx);
   renderStatusCell(row, task, ctx);
@@ -285,6 +303,28 @@ export function renderTaskRow(tbody: HTMLElement, task: Task, depth: number, _pa
 }
 
 // ─── Selection ─────────────────────────────────────────────────────────────────
+
+export function updateSelectAllCheckbox(state: TableState): void {
+  if (!state.tableBody) return;
+  const wrapper = state.tableBody.closest('.pm-table-wrapper');
+  if (!wrapper) return;
+  const selectAllCb = wrapper.querySelector('.pm-select-all-checkbox') as HTMLInputElement | null;
+  if (!selectAllCb) return;
+  const ids = Array.from(state.tableBody.querySelectorAll('tr[data-task-id]')).map(r => (r as HTMLElement).dataset.taskId!);
+  if (ids.length === 0) {
+    selectAllCb.checked = false;
+    selectAllCb.indeterminate = false;
+  } else if (ids.every(id => state.selectedTaskIds.has(id))) {
+    selectAllCb.checked = true;
+    selectAllCb.indeterminate = false;
+  } else if (ids.some(id => state.selectedTaskIds.has(id))) {
+    selectAllCb.checked = false;
+    selectAllCb.indeterminate = true;
+  } else {
+    selectAllCb.checked = false;
+    selectAllCb.indeterminate = false;
+  }
+}
 
 export function updateSelectedRow(state: TableState): void {
   if (!state.tableBody) return;

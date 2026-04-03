@@ -1,12 +1,16 @@
+import { Notice } from 'obsidian';
 import type PMPlugin from '../../main';
 import type { Project, FilterState } from '../../types';
 import { makeDefaultFilter } from '../../types';
+import { deleteTaskFromTree } from '../../store/TaskTreeOps';
 import type { SubView } from '../SubView';
 import { renderQuickAddBar, focusQuickAdd } from './QuickAddBar';
 import { renderSavedViewsBar } from './SavedViewsBar';
 import { renderFilterBar } from './FilterBar';
 import { renderTable, refreshTableBody, handleTableKeyDown } from './TableRenderer';
 import type { SortKey, SortDir, TableState } from './TableRenderer';
+import { renderBulkActionBar } from './BulkActionBar';
+import type { BulkAction } from './BulkActionBar';
 
 export interface TableViewState {
   filter: FilterState;
@@ -31,6 +35,7 @@ export class TableView implements SubView {
       sortDir: initialState?.sortDir ?? ('asc' as SortDir),
       filter: initialState?.filter ?? makeDefaultFilter(),
       selectedTaskId: null,
+      selectedTaskIds: new Set(),
       tableBody: null,
     };
     this.activeSavedViewId = initialState?.activeSavedViewId ?? null;
@@ -95,6 +100,43 @@ export class TableView implements SubView {
     }
   }
 
+  private async handleBulkAction(action: BulkAction): Promise<void> {
+    const ids = [...this.state.selectedTaskIds];
+    if (!ids.length) return;
+
+    try {
+      switch (action.type) {
+        case 'set-status':
+          for (const id of ids) {
+            await this.plugin.store.updateTask(this.project, id, { status: action.status });
+          }
+          break;
+        case 'set-priority':
+          for (const id of ids) {
+            await this.plugin.store.updateTask(this.project, id, { priority: action.priority });
+          }
+          break;
+        case 'delete':
+          for (const id of ids) {
+            deleteTaskFromTree(this.project.tasks, id);
+          }
+          await this.plugin.store.saveProject(this.project);
+          break;
+      }
+      this.state.selectedTaskIds.clear();
+      await this.onRefresh();
+    } catch (err) {
+      console.error('Bulk action failed', err);
+      new Notice('Bulk action failed. Please try again.');
+      await this.onRefresh();
+    }
+  }
+
+  private updateBulkBar(): void {
+    const ctx = this.makeTableContext();
+    renderBulkActionBar({ ctx, onAction: (a) => this.handleBulkAction(a) });
+  }
+
   private makeTableContext() {
     return {
       container: this.container,
@@ -102,6 +144,7 @@ export class TableView implements SubView {
       plugin: this.plugin,
       state: this.state,
       onRefresh: this.onRefresh,
+      onSelectionChange: () => this.updateBulkBar(),
     };
   }
 }

@@ -4,7 +4,7 @@ import { type FlatTask, flattenTasks, findTask, deleteTaskFromTree } from '../..
 import { openTaskModal } from '../../ui/ModalFactory';
 import { focusQuickAdd } from './QuickAddBar';
 import { applyFilters, compareTask } from './TableFilters';
-import { renderTaskRow, updateSelectedRow } from './TableRow';
+import { renderTaskRow, updateSelectedRow, updateSelectAllCheckbox } from './TableRow';
 
 type SortKey = 'title' | 'status' | 'priority' | 'due' | 'assignees' | 'progress';
 type SortDir = 'asc' | 'desc';
@@ -16,6 +16,7 @@ export interface TableState {
   sortDir: SortDir;
   filter: FilterState;
   selectedTaskId: string | null;
+  selectedTaskIds: Set<string>;
   tableBody: HTMLElement | null;
 }
 
@@ -25,6 +26,7 @@ export interface TableContext {
   plugin: PMPlugin;
   state: TableState;
   onRefresh: () => Promise<void>;
+  onSelectionChange: () => void;
 }
 
 export function renderTable(ctx: TableContext): void {
@@ -34,6 +36,21 @@ export function renderTable(ctx: TableContext): void {
   // Header
   const thead = table.createEl('thead');
   const hrow = thead.createEl('tr');
+
+  // Select-all checkbox
+  const selectAllTh = hrow.createEl('th', { cls: 'pm-table-cell-select' });
+  const selectAllCb = selectAllTh.createEl('input', { type: 'checkbox', cls: 'pm-select-all-checkbox' });
+  selectAllCb.addEventListener('change', () => {
+    const ids = getVisibleTaskIds(ctx.state);
+    if (selectAllCb.checked) {
+      for (const id of ids) ctx.state.selectedTaskIds.add(id);
+    } else {
+      ctx.state.selectedTaskIds.clear();
+    }
+    updateSelectCheckboxes(ctx.state);
+    ctx.onSelectionChange();
+  });
+
   const cols: { key: SortKey | null; label: string; width?: string }[] = [
     { key: null,        label: '',          width: '32px'  },
     { key: 'title',     label: 'Task',      width: 'auto'  },
@@ -115,11 +132,22 @@ function fillTableBody(ctx: TableContext): void {
 
   // "Add task" row
   const addRow = tbody.createEl('tr', { cls: 'pm-table-add-row' });
-  const addCell = addRow.createEl('td', { attr: { colspan: String(9 + ctx.project.customFields.length) } });
+  const addCell = addRow.createEl('td', { attr: { colspan: String(10 + ctx.project.customFields.length) } });
   const addBtn = addCell.createEl('button', { text: '+ Add Task', cls: 'pm-table-add-btn' });
   addBtn.addEventListener('click', async () => {
     openTaskModal(ctx.plugin, ctx.project, { onSave: async () => { await ctx.onRefresh(); } });
   });
+}
+
+function updateSelectCheckboxes(state: TableState): void {
+  if (!state.tableBody) return;
+  const rows = state.tableBody.querySelectorAll('tr[data-task-id]');
+  for (const row of Array.from(rows)) {
+    const id = (row as HTMLElement).dataset.taskId!;
+    const cb = row.querySelector('.pm-select-checkbox') as HTMLInputElement | null;
+    if (cb) cb.checked = state.selectedTaskIds.has(id);
+  }
+  updateSelectAllCheckbox(state);
 }
 
 // ─── Keyboard handling ──────────────────────────────────────────────────────
@@ -132,6 +160,12 @@ export function handleTableKeyDown(e: KeyboardEvent, ctx: TableContext): void {
   if (e.key === 'Escape') {
     if (isInput) {
       (active as HTMLElement).blur();
+      return;
+    }
+    if (ctx.state.selectedTaskIds.size > 0) {
+      ctx.state.selectedTaskIds.clear();
+      updateSelectCheckboxes(ctx.state);
+      ctx.onSelectionChange();
       return;
     }
     ctx.state.selectedTaskId = null;
