@@ -6,6 +6,7 @@ import {
   DAY_MS, ROW_HEIGHT, HEADER_HEIGHT,
   dateToX,
 } from './TimelineConfig';
+import { svgEl } from '../../utils';
 import type { DragState } from './GanttDragHandler';
 
 export { renderTimelineHeader } from './GanttHeaderRenderer';
@@ -25,8 +26,7 @@ export interface RendererContext {
 // ─── Grid lines ────────────────────────────────────────────────────────────
 
 export function renderGridLines(ctx: RendererContext, totalRows: number): void {
-  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  g.setAttribute('class', 'pm-gantt-grid');
+  const g = svgEl('g', { class: 'pm-gantt-grid' });
 
   const totalHeight = HEADER_HEIGHT + totalRows * ROW_HEIGHT;
   const { startDate, totalDays, dayWidth, granularity } = ctx.cfg;
@@ -39,12 +39,10 @@ export function renderGridLines(ctx: RendererContext, totalRows: number): void {
     const isFirst   = d.getDate() === 1;
 
     if (isWeekend && granularity === 'day') {
-      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      rect.setAttribute('x', String(x)); rect.setAttribute('y', String(HEADER_HEIGHT));
-      rect.setAttribute('width', String(dayWidth));
-      rect.setAttribute('height', String(totalHeight - HEADER_HEIGHT));
-      rect.setAttribute('class', 'pm-gantt-weekend');
-      g.appendChild(rect);
+      g.appendChild(svgEl('rect', {
+        x, y: HEADER_HEIGHT, width: dayWidth,
+        height: totalHeight - HEADER_HEIGHT, class: 'pm-gantt-weekend',
+      }));
     }
 
     const shouldDrawLine =
@@ -54,21 +52,19 @@ export function renderGridLines(ctx: RendererContext, totalRows: number): void {
       (granularity === 'quarter' && isFirst && d.getMonth() % 3 === 0);
 
     if (shouldDrawLine) {
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', String(x)); line.setAttribute('y1', String(HEADER_HEIGHT));
-      line.setAttribute('x2', String(x)); line.setAttribute('y2', String(totalHeight));
-      line.setAttribute('class', 'pm-gantt-gridline-v');
-      g.appendChild(line);
+      g.appendChild(svgEl('line', {
+        x1: x, y1: HEADER_HEIGHT, x2: x, y2: totalHeight,
+        class: 'pm-gantt-gridline-v',
+      }));
     }
   }
 
   for (let r = 0; r <= totalRows; r++) {
     const y = HEADER_HEIGHT + r * ROW_HEIGHT;
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', '0'); line.setAttribute('y1', String(y));
-    line.setAttribute('x2', String(ctx.cfg.totalWidth)); line.setAttribute('y2', String(y));
-    line.setAttribute('class', 'pm-gantt-gridline-h');
-    g.appendChild(line);
+    g.appendChild(svgEl('line', {
+      x1: 0, y1: y, x2: ctx.cfg.totalWidth, y2: y,
+      class: 'pm-gantt-gridline-h',
+    }));
   }
 
   ctx.svgEl.appendChild(g);
@@ -82,19 +78,17 @@ export function renderTodayLine(ctx: RendererContext, svgHeight: number): void {
   const x = dateToX(ctx.cfg, today);
   if (x < 0 || x > ctx.cfg.totalWidth) return;
 
-  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  g.setAttribute('class', 'pm-gantt-today-group');
+  const g = svgEl('g', { class: 'pm-gantt-today-group' });
 
-  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  line.setAttribute('x1', String(x)); line.setAttribute('y1', String(HEADER_HEIGHT - 8));
-  line.setAttribute('x2', String(x)); line.setAttribute('y2', String(svgHeight));
-  line.setAttribute('class', 'pm-gantt-today-line');
-  g.appendChild(line);
+  g.appendChild(svgEl('line', {
+    x1: x, y1: HEADER_HEIGHT - 8, x2: x, y2: svgHeight,
+    class: 'pm-gantt-today-line',
+  }));
 
-  const diamond = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-  diamond.setAttribute('points', `${x},${HEADER_HEIGHT - 16} ${x + 6},${HEADER_HEIGHT - 8} ${x},${HEADER_HEIGHT} ${x - 6},${HEADER_HEIGHT - 8}`);
-  diamond.setAttribute('class', 'pm-gantt-today-diamond');
-  g.appendChild(diamond);
+  g.appendChild(svgEl('polygon', {
+    points: `${x},${HEADER_HEIGHT - 16} ${x + 6},${HEADER_HEIGHT - 8} ${x},${HEADER_HEIGHT} ${x - 6},${HEADER_HEIGHT - 8}`,
+    class: 'pm-gantt-today-diamond',
+  }));
 
   ctx.svgEl.appendChild(g);
 }

@@ -8,6 +8,7 @@ import { buildTimelineConfig, dateToX, HEADER_HEIGHT, ROW_HEIGHT, LABEL_WIDTH } 
 import { makeDragState } from './GanttDragHandler';
 import type { DragState } from './GanttDragHandler';
 import { renderTimelineHeader, renderGridLines, renderTodayLine, renderTaskBar, renderDependencyArrows, renderMilestoneLabels } from './GanttRenderer';
+import { svgEl } from '../../utils';
 import type { RendererContext } from './GanttRenderer';
 import { renderTaskLabel } from './TaskLabelRenderer';
 
@@ -137,10 +138,9 @@ export class GanttView implements SubView {
     const totalRows = this.flatTasks.filter(f => f.visible || f.depth === 0).length;
     const svgHeight = HEADER_HEIGHT + (totalRows + 1) * ROW_HEIGHT; // +1 for add-task row
 
-    this.svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement;
-    this.svgEl.setAttribute('width', String(this.cfg.totalWidth));
-    this.svgEl.setAttribute('height', String(svgHeight));
-    this.svgEl.setAttribute('class', 'pm-gantt-svg');
+    this.svgEl = svgEl('svg', {
+      width: this.cfg.totalWidth, height: svgHeight, class: 'pm-gantt-svg',
+    }) as SVGSVGElement;
     svgContainer.appendChild(this.svgEl);
 
     const ctx = this.makeRendererContext();
@@ -186,8 +186,7 @@ export class GanttView implements SubView {
   }
 
   private renderTaskRows(leftBody: HTMLElement, ctx: RendererContext): void {
-    const barsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    barsGroup.setAttribute('class', 'pm-gantt-bars');
+    const barsGroup = svgEl('g', { class: 'pm-gantt-bars' });
     this.svgEl.appendChild(barsGroup);
 
     const labelCtx = { plugin: this.plugin, project: this.project, onRefresh: this.onRefresh };
