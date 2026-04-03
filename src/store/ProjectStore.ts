@@ -247,6 +247,23 @@ export class ProjectStore {
     await this.saveProject(project);
   }
 
+  async updateTasks(project: Project, taskIds: string[], patch: Partial<Task>): Promise<void> {
+    for (const id of taskIds) {
+      updateTaskInTree(project.tasks, id, patch);
+    }
+    await this.saveProject(project);
+  }
+
+  async deleteTasks(project: Project, taskIds: string[]): Promise<void> {
+    const folder = this.projectTaskFolder(project);
+    for (const id of taskIds) {
+      const task = findTask(project.tasks, id);
+      if (task) await this.deleteTaskFiles(task, folder);
+      deleteTaskFromTree(project.tasks, id);
+    }
+    await this.saveProject(project);
+  }
+
   async deleteTask(project: Project, taskId: string): Promise<void> {
     const task = findTask(project.tasks, taskId);
     if (task) {
