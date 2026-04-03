@@ -1,4 +1,4 @@
-import type { Task } from './types';
+import type { Task, StatusConfig, PriorityConfig, TaskStatus, TaskPriority } from './types';
 
 /** Deterministic HSL color from a string (e.g. assignee name) */
 export function stringToColor(s: string): string {
@@ -54,6 +54,21 @@ export function truncateTitle(title: string, maxLen = 20): string {
 /** Replace characters illegal in file names */
 export function sanitizeFileName(title: string): string {
   return title.replace(/[\\/:*?"<>|]/g, '-');
+}
+
+/** Look up a status config by id */
+export function getStatusConfig(statuses: StatusConfig[], id: TaskStatus): StatusConfig | undefined {
+  return statuses.find(s => s.id === id);
+}
+
+/** Look up a priority config by id */
+export function getPriorityConfig(priorities: PriorityConfig[], id: TaskPriority): PriorityConfig | undefined {
+  return priorities.find(p => p.id === id);
+}
+
+/** Format a config's icon + label into display text (e.g. "🔴 Critical") */
+export function formatBadgeText(icon: string | undefined, label: string): string {
+  return [icon, label].filter(Boolean).join(' ');
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

@@ -6,6 +6,7 @@ import {
 import { flattenTasks } from '../store/TaskTreeOps';
 import { renderPropRow, renderProgressSlider, renderChipList } from '../ui/FormField';
 import { COLOR_MUTED } from '../constants';
+import { getStatusConfig, getPriorityConfig, formatBadgeText } from '../utils';
 import { renderCustomFieldInput } from './CustomFieldInputs';
 
 export interface TaskFormFieldsContext {
@@ -26,15 +27,15 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
 
   // Status
   renderPropRow(container, 'Status', () => {
-    const statusConfig = plugin.settings.statuses.find(s => s.id === task.status);
+    const statusConfig = getStatusConfig(plugin.settings.statuses, task.status);
     const val = createEl('button', { cls: 'pm-prop-value pm-prop-value--badge' });
     val.style.setProperty('--badge-color', statusConfig?.color ?? COLOR_MUTED);
-    val.setText([statusConfig?.icon, statusConfig?.label ?? task.status].filter(Boolean).join(' '));
+    val.setText(formatBadgeText(statusConfig?.icon, statusConfig?.label ?? task.status));
     val.addEventListener('click', e => {
       const menu = new Menu();
       for (const s of plugin.settings.statuses) {
         menu.addItem(item => item
-          .setTitle([s.icon, s.label].filter(Boolean).join(' '))
+          .setTitle(formatBadgeText(s.icon, s.label))
           .setChecked(s.id === task.status)
           .onClick(() => { task.status = s.id as TaskStatus; rerender(); }));
       }
@@ -45,15 +46,15 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
 
   // Priority
   renderPropRow(container, 'Priority', () => {
-    const prioConfig = plugin.settings.priorities.find(p => p.id === task.priority);
+    const prioConfig = getPriorityConfig(plugin.settings.priorities, task.priority);
     const val = createEl('button', { cls: 'pm-prop-value pm-prop-value--badge' });
     val.style.setProperty('--badge-color', prioConfig?.color ?? COLOR_MUTED);
-    val.setText([prioConfig?.icon, prioConfig?.label ?? task.priority].filter(Boolean).join(' '));
+    val.setText(formatBadgeText(prioConfig?.icon, prioConfig?.label ?? task.priority));
     val.addEventListener('click', e => {
       const menu = new Menu();
       for (const p of plugin.settings.priorities) {
         menu.addItem(item => item
-          .setTitle([p.icon, p.label].filter(Boolean).join(' '))
+          .setTitle(formatBadgeText(p.icon, p.label))
           .setChecked(p.id === task.priority)
           .onClick(() => { task.priority = p.id as TaskPriority; rerender(); }));
       }

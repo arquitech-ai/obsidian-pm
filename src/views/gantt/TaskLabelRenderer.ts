@@ -3,6 +3,7 @@ import type { Project, Task } from '../../types';
 import { moveTaskInTree } from '../../store/TaskTreeOps';
 import { openTaskModal } from '../../ui/ModalFactory';
 import { COLOR_MUTED } from '../../constants';
+import { getStatusConfig } from '../../utils';
 import { ROW_HEIGHT } from './TimelineConfig';
 
 export interface LabelContext {
@@ -64,7 +65,7 @@ export function renderTaskLabel(
   }
 
   // Color dot
-  const statusConfig = ctx.plugin.settings.statuses.find(s => s.id === task.status);
+  const statusConfig = getStatusConfig(ctx.plugin.settings.statuses, task.status);
   const dot = el.createEl('span', { cls: 'pm-gantt-label-dot' });
   dot.style.background = statusConfig?.color ?? COLOR_MUTED;
 

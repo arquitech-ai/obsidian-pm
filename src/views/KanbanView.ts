@@ -1,7 +1,7 @@
 import type PMPlugin from '../main';
 import { Project, Task, TaskStatus } from '../types';
 import { flattenTasks, totalLoggedHours } from '../store/TaskTreeOps';
-import { stringToColor, formatDateShort, isTaskOverdue } from '../utils';
+import { stringToColor, formatDateShort, isTaskOverdue, getPriorityConfig, formatBadgeText } from '../utils';
 import { openTaskModal } from '../ui/ModalFactory';
 import { COLOR_ACCENT } from '../constants';
 import type { SubView } from './SubView';
@@ -55,7 +55,7 @@ export class KanbanView implements SubView {
 
     const titleRow = header.createDiv('pm-kanban-col-title-row');
     const badge = titleRow.createEl('span', {
-      text: [status.icon, status.label].filter(Boolean).join(' '),
+      text: formatBadgeText(status.icon, status.label),
       cls: 'pm-kanban-col-badge',
     });
     badge.style.color = status.color;
@@ -112,7 +112,7 @@ export class KanbanView implements SubView {
     card.draggable = true;
     card.dataset.taskId = task.id;
 
-    const priorityConfig = this.plugin.settings.priorities.find(p => p.id === task.priority);
+    const priorityConfig = getPriorityConfig(this.plugin.settings.priorities, task.priority);
     if (priorityConfig && task.priority !== 'medium' && task.priority !== 'low') {
       const priorityBar = card.createDiv('pm-kanban-card-priority-bar');
       priorityBar.style.background = priorityConfig.color;

@@ -3,6 +3,7 @@ import type PMPlugin from '../../main';
 import type { Project, Task, FilterState, TaskStatus, TaskPriority, DueDateFilter } from '../../types';
 import { makeDefaultFilter } from '../../types';
 import { renderFilterDropdown } from '../../ui/FilterDropdown';
+import { formatBadgeText } from '../../utils';
 
 export interface FilterBarContext {
   project: Project;
@@ -32,12 +33,12 @@ export function renderFilterBar(container: HTMLElement, ctx: FilterBarContext): 
 
   // Status filter
   renderFilterDropdown(bar, 'Status', ctx.filter.statuses,
-    ctx.plugin.settings.statuses.map(s => ({ id: s.id, label: [s.icon, s.label].filter(Boolean).join(' ') })),
+    ctx.plugin.settings.statuses.map(s => ({ id: s.id, label: formatBadgeText(s.icon, s.label) })),
     (selected) => { ctx.filter.statuses = selected as TaskStatus[]; ctx.rerender(); });
 
   // Priority filter
   renderFilterDropdown(bar, 'Priority', ctx.filter.priorities,
-    ctx.plugin.settings.priorities.map(p => ({ id: p.id, label: [p.icon, p.label].filter(Boolean).join(' ') })),
+    ctx.plugin.settings.priorities.map(p => ({ id: p.id, label: formatBadgeText(p.icon, p.label) })),
     (selected) => { ctx.filter.priorities = selected as TaskPriority[]; ctx.rerender(); });
 
   // Assignee filter

@@ -2,6 +2,7 @@ import type PMPlugin from '../main';
 import type { Task } from '../types';
 import { makeTask } from '../types';
 import { COLOR_MUTED } from '../constants';
+import { getStatusConfig } from '../utils';
 
 /**
  * Renders the subtasks section (list + add button) into the given container.
@@ -17,7 +18,7 @@ export function renderSubtasksPanel(container: HTMLElement, task: Task, plugin: 
     subList.empty();
     for (const sub of task.subtasks) {
       const row = subList.createDiv('pm-modal-subtask-row');
-      const subStatus = plugin.settings.statuses.find(s => s.id === sub.status);
+      const subStatus = getStatusConfig(plugin.settings.statuses, sub.status);
 
       const check = row.createEl('input', { type: 'checkbox', cls: 'pm-subtask-checkbox' });
       check.checked = sub.status === 'done';

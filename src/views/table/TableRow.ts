@@ -1,7 +1,7 @@
 import { Menu } from 'obsidian';
 import type { Task, Project } from '../../types';
 import { totalLoggedHours } from '../../store/TaskTreeOps';
-import { stringToColor, formatDateLong, todayMidnight, isTaskOverdue } from '../../utils';
+import { stringToColor, formatDateLong, todayMidnight, isTaskOverdue, getStatusConfig, getPriorityConfig } from '../../utils';
 import { COLOR_ACCENT } from '../../constants';
 import { renderStatusBadge, renderPriorityBadge } from '../../ui/StatusBadge';
 import { openTaskModal } from '../../ui/ModalFactory';
@@ -125,7 +125,7 @@ function renderTitleCell(row: HTMLElement, task: Task, depth: number, ctx: Table
 
 function renderStatusCell(row: HTMLElement, task: Task, ctx: TableContext): void {
   const cell = row.createEl('td', { cls: 'pm-table-cell' });
-  const statusConfig = ctx.plugin.settings.statuses.find(s => s.id === task.status);
+  const statusConfig = getStatusConfig(ctx.plugin.settings.statuses, task.status);
   if (statusConfig) {
     renderStatusBadge(cell, task, ctx.plugin.settings.statuses, async (status) => {
       await ctx.plugin.store.updateTask(ctx.project, task.id, { status });
@@ -136,7 +136,7 @@ function renderStatusCell(row: HTMLElement, task: Task, ctx: TableContext): void
 
 function renderPriorityCell(row: HTMLElement, task: Task, ctx: TableContext): void {
   const cell = row.createEl('td', { cls: 'pm-table-cell' });
-  const priorityConfig = ctx.plugin.settings.priorities.find(p => p.id === task.priority);
+  const priorityConfig = getPriorityConfig(ctx.plugin.settings.priorities, task.priority);
   if (priorityConfig) {
     renderPriorityBadge(cell, task, ctx.plugin.settings.priorities, async (priority) => {
       await ctx.plugin.store.updateTask(ctx.project, task.id, { priority });
@@ -245,7 +245,7 @@ function renderCustomFieldCells(row: HTMLElement, task: Task, project: Project):
 
 export function renderTaskRow(tbody: HTMLElement, task: Task, depth: number, _parentId: string | null, ctx: TableContext): void {
   const isDone = task.status === 'done' || task.status === 'cancelled';
-  const statusConfig = ctx.plugin.settings.statuses.find(s => s.id === task.status);
+  const statusConfig = getStatusConfig(ctx.plugin.settings.statuses, task.status);
 
   const row = tbody.createEl('tr', { cls: 'pm-table-row' });
   row.dataset.taskId = task.id;

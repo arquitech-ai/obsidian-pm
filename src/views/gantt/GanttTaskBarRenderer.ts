@@ -2,7 +2,7 @@ import type { Task } from '../../types';
 import { flattenTasks } from '../../store/TaskTreeOps';
 import { openTaskModal } from '../../ui/ModalFactory';
 import { COLOR_ACCENT } from '../../constants';
-import { svgEl } from '../../utils';
+import { svgEl, getStatusConfig } from '../../utils';
 import {
   DAY_MS, ROW_HEIGHT, HEADER_HEIGHT, BAR_PADDING, BAR_BORDER_RADIUS,
   dateToX,
@@ -17,7 +17,7 @@ export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: n
   const endDate   = task.due   ? new Date(task.due)   : null;
   if (!startDate && !endDate) return;
 
-  const statusConfig  = ctx.plugin.settings.statuses.find(s => s.id === task.status);
+  const statusConfig  = getStatusConfig(ctx.plugin.settings.statuses, task.status);
   const color = statusConfig?.color ?? COLOR_ACCENT;
   const rowY   = HEADER_HEIGHT + row * ROW_HEIGHT;
   const y      = rowY + BAR_PADDING;
@@ -159,7 +159,7 @@ export function renderMilestoneLabels(ctx: RendererContext): void {
   for (const { task } of milestones) {
     const date = task.due ? new Date(task.due) : new Date(task.start);
     const x = dateToX(ctx.cfg, date) + ctx.cfg.dayWidth / 2;
-    const statusConfig = ctx.plugin.settings.statuses.find(s => s.id === task.status);
+    const statusConfig = getStatusConfig(ctx.plugin.settings.statuses, task.status);
     const color = statusConfig?.color ?? COLOR_ACCENT;
 
     const totalH = HEADER_HEIGHT + ctx.flatTasks.filter(f => f.visible || f.depth === 0).length * ROW_HEIGHT;
