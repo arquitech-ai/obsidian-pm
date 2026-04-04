@@ -267,8 +267,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 16px;
+  padding: 6px 12px;
+  margin: 0 16px 6px;
   background: color-mix(in srgb, var(--pm-accent) 8%, var(--pm-surface-raised));
+  border: 1px dashed var(--pm-border);
+  border-radius: var(--pm-radius);
   flex-shrink: 0;
   animation: pm-bulk-bar-in 0.15s ease-out;
 }
@@ -459,22 +462,6 @@
   transition: color 0.15s;
 }
 .pm-expand-btn:hover { color: var(--pm-text); }
-
-.pm-task-checkbox {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--pm-border);
-  border-radius: 50%;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.15s;
-}
-.pm-task-checkbox:checked {
-  background: var(--pm-success);
-  border-color: var(--pm-success);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6l3 3 5-5' stroke='white' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-}
 
 .pm-task-title-text {
   cursor: pointer;

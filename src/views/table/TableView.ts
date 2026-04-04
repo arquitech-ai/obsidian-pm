@@ -1,7 +1,8 @@
 import { Notice } from 'obsidian';
 import type PMPlugin from '../../main';
-import type { Project, FilterState } from '../../types';
+import type { Project, Task, FilterState } from '../../types';
 import { makeDefaultFilter } from '../../types';
+import { findTask } from '../../store/TaskTreeOps';
 import type { SubView } from '../SubView';
 import { renderQuickAddBar, focusQuickAdd } from './QuickAddBar';
 import { renderSavedViewsBar } from './SavedViewsBar';
@@ -111,6 +112,26 @@ export class TableView implements SubView {
         case 'set-priority':
           await this.plugin.store.updateTasks(this.project, ids, { priority: action.priority });
           break;
+        case 'set-assignee':
+          if (action.assignee === '') {
+            await this.plugin.store.updateTasks(this.project, ids, { assignees: [] });
+          } else {
+            await this.bulkAddToArray(ids, 'assignees', action.assignee);
+          }
+          break;
+        case 'set-tag':
+          if (action.tag === '') {
+            await this.plugin.store.updateTasks(this.project, ids, { tags: [] });
+          } else {
+            await this.bulkAddToArray(ids, 'tags', action.tag);
+          }
+          break;
+        case 'set-due-date':
+          await this.plugin.store.updateTasks(this.project, ids, { due: action.due });
+          break;
+        case 'set-progress':
+          await this.plugin.store.updateTasks(this.project, ids, { progress: action.progress });
+          break;
         case 'delete':
           if (!confirm(`Delete ${ids.length} task${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
           await this.plugin.store.deleteTasks(this.project, ids);
@@ -123,6 +144,16 @@ export class TableView implements SubView {
       new Notice('Bulk action failed. Please try again.');
       await this.onRefresh();
     }
+  }
+
+  private async bulkAddToArray(ids: string[], field: 'assignees' | 'tags', value: string): Promise<void> {
+    for (const id of ids) {
+      const task = findTask(this.project.tasks, id);
+      if (task && !task[field].includes(value)) {
+        task[field] = [...task[field], value];
+      }
+    }
+    await this.plugin.store.saveProject(this.project);
   }
 
   private updateBulkBar(): void {

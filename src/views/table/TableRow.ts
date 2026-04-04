@@ -85,17 +85,6 @@ function renderTitleCell(row: HTMLElement, task: Task, depth: number, ctx: Table
   const cell = row.createEl('td', { cls: 'pm-table-cell-title' });
   cell.style.paddingLeft = `${depth * 20 + 8}px`;
 
-  // Checkbox
-  const checkbox = cell.createEl('input', { type: 'checkbox', cls: 'pm-task-checkbox' });
-  checkbox.checked = task.status === 'done';
-  checkbox.addEventListener('change', async () => {
-    await ctx.plugin.store.updateTask(ctx.project, task.id, {
-      status: checkbox.checked ? 'done' : 'todo',
-      progress: checkbox.checked ? 100 : 0,
-    });
-    await ctx.onRefresh();
-  });
-
   // Title text (click to open, dblclick to inline edit)
   const titleSpan = cell.createEl('span', { text: task.title, cls: 'pm-task-title-text' });
   titleSpan.addEventListener('click', async () => {
