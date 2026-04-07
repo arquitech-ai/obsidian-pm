@@ -331,13 +331,21 @@ export class ProjectStore {
     const taskFolder = this.projectTaskFolder(project);
     const folder = this.app.vault.getAbstractFileByPath(taskFolder);
     if (folder instanceof TFolder) {
-      for (const child of folder.children) {
-        if (child instanceof TFile) await this.app.vault.delete(child);
-      }
-      await this.app.vault.delete(folder);
+      await this.deleteFolderRecursive(folder);
     }
     const file = this.app.vault.getAbstractFileByPath(project.filePath);
     if (file instanceof TFile) await this.app.vault.trash(file, true);
+  }
+
+  private async deleteFolderRecursive(folder: TFolder): Promise<void> {
+    for (const child of [...folder.children]) {
+      if (child instanceof TFile) {
+        await this.app.vault.delete(child);
+      } else if (child instanceof TFolder) {
+        await this.deleteFolderRecursive(child);
+      }
+    }
+    await this.app.vault.delete(folder);
   }
 
   // ─── Migration helpers (public for migration.ts) ──────────────────────────
