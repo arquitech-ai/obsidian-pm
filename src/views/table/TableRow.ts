@@ -1,4 +1,4 @@
-import { Menu } from 'obsidian';
+import { Menu, Notice } from 'obsidian';
 import type { Task, Project } from '../../types';
 import { totalLoggedHours } from '../../store/TaskTreeOps';
 import { stringToColor, formatDateLong, todayMidnight, isTaskOverdue, getStatusConfig, getPriorityConfig } from '../../utils';
@@ -243,6 +243,19 @@ function renderActionsCell(row: HTMLElement, task: Task, ctx: TableContext): voi
       openTaskModal(ctx.plugin, ctx.project, { parentId: task.id, onSave: async () => { await ctx.onRefresh(); } });
     }));
     menu.addSeparator();
+    if (task.archived) {
+      menu.addItem(item => item.setTitle('Unarchive').setIcon('archive-restore').onClick(async () => {
+        await ctx.plugin.store.unarchiveTask(ctx.project, task.id);
+        new Notice('Task unarchived');
+        await ctx.onRefresh();
+      }));
+    } else {
+      menu.addItem(item => item.setTitle('Archive').setIcon('archive').onClick(async () => {
+        await ctx.plugin.store.archiveTask(ctx.project, task.id);
+        new Notice('Task archived');
+        await ctx.onRefresh();
+      }));
+    }
     menu.addItem(item => item.setTitle('Delete task').setIcon('trash').onClick(async () => {
       await ctx.plugin.store.deleteTask(ctx.project, task.id);
       await ctx.onRefresh();

@@ -1,3 +1,4 @@
+import { Menu, Notice } from 'obsidian';
 import type PMPlugin from '../main';
 import { Project, Task, TaskStatus } from '../types';
 import { flattenTasks, totalLoggedHours } from '../store/TaskTreeOps';
@@ -196,6 +197,36 @@ export class KanbanView implements SubView {
     // Click to open
     card.addEventListener('click', async () => {
       openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
+    });
+
+    // Right-click context menu
+    card.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const menu = new Menu();
+      menu.addItem(item => item.setTitle('Edit task').setIcon('pencil').onClick(async () => {
+        openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
+      }));
+      menu.addSeparator();
+      if (task.archived) {
+        menu.addItem(item => item.setTitle('Unarchive').setIcon('archive-restore').onClick(async () => {
+          await this.plugin.store.unarchiveTask(this.project, task.id);
+          new Notice('Task unarchived');
+          await this.onRefresh();
+        }));
+      } else {
+        menu.addItem(item => item.setTitle('Archive').setIcon('archive').onClick(async () => {
+          await this.plugin.store.archiveTask(this.project, task.id);
+          new Notice('Task archived');
+          await this.onRefresh();
+        }));
+      }
+      menu.addItem(item => item.setTitle('Delete task').setIcon('trash').onClick(async () => {
+        if (confirm(`Delete "${task.title}"?`)) {
+          await this.plugin.store.deleteTask(this.project, task.id);
+          await this.onRefresh();
+        }
+      }));
+      menu.showAtMouseEvent(e as MouseEvent);
     });
   }
 

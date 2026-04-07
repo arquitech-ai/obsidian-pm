@@ -1,4 +1,4 @@
-import { App, Modal } from 'obsidian';
+import { App, Modal, Notice } from 'obsidian';
 import type PMPlugin from '../main';
 import { Project, Task, makeTask } from '../types';
 import { flattenTasks } from '../store/TaskTreeOps';
@@ -126,6 +126,26 @@ export class TaskModal extends Modal {
     const footer = contentEl.createDiv('pm-modal-footer');
 
     if (!this.isNew) {
+      if (this.task.archived) {
+        const unarchiveBtn = footer.createEl('button', { text: 'Unarchive', cls: 'pm-btn pm-btn-ghost' });
+        unarchiveBtn.addEventListener('click', async () => {
+          await this.plugin.store.unarchiveTask(this.project, this.task.id);
+          new Notice('Task unarchived');
+          await this.onSave(this.task);
+          this.cancelled = true;
+          this.close();
+        });
+      } else {
+        const archiveBtn = footer.createEl('button', { text: 'Archive', cls: 'pm-btn pm-btn-ghost' });
+        archiveBtn.addEventListener('click', async () => {
+          await this.plugin.store.archiveTask(this.project, this.task.id);
+          new Notice('Task archived');
+          await this.onSave(this.task);
+          this.cancelled = true;
+          this.close();
+        });
+      }
+
       const deleteBtn = footer.createEl('button', { text: 'Delete', cls: 'pm-btn pm-btn-danger' });
       deleteBtn.addEventListener('click', async () => {
         if (confirm(`Delete "${this.task.title}"?`)) {

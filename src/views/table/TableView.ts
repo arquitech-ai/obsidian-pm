@@ -132,6 +132,12 @@ export class TableView implements SubView {
         case 'set-progress':
           await this.plugin.store.updateTasks(this.project, ids, { progress: action.progress });
           break;
+        case 'archive':
+          for (const id of ids) {
+            await this.plugin.store.archiveTask(this.project, id);
+          }
+          new Notice(`Archived ${ids.length} task${ids.length > 1 ? 's' : ''}`);
+          break;
         case 'delete':
           if (!confirm(`Delete ${ids.length} task${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
           await this.plugin.store.deleteTasks(this.project, ids);

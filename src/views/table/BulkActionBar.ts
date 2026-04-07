@@ -11,6 +11,7 @@ export type BulkAction =
   | { type: 'set-tag'; tag: string }
   | { type: 'set-due-date'; due: string }
   | { type: 'set-progress'; progress: number }
+  | { type: 'archive' }
   | { type: 'delete' };
 
 export interface BulkActionBarOpts {
@@ -156,6 +157,12 @@ function updateBarContent(bar: HTMLElement, ctx: TableContext, onAction: (a: Bul
       menu.addItem(item => item.setTitle(`${pct}%`).onClick(() => onAction({ type: 'set-progress', progress: pct })));
     }
     menu.showAtMouseEvent(e as MouseEvent);
+  });
+
+  // Archive button
+  const archiveBtn = left.createEl('button', { text: 'Archive', cls: 'pm-btn pm-btn-ghost pm-btn-sm' });
+  archiveBtn.addEventListener('click', () => {
+    onAction({ type: 'archive' });
   });
 
   // Delete button
