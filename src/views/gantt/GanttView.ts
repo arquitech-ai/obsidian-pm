@@ -1,6 +1,6 @@
 import type PMPlugin from '../../main';
 import type { Project, Task, GanttGranularity } from '../../types';
-import { type FlatTask, flattenTasks } from '../../store/TaskTreeOps';
+import { type FlatTask, flattenTasks, filterArchived } from '../../store/TaskTreeOps';
 import { openTaskModal } from '../../ui/ModalFactory';
 import type { SubView } from '../SubView';
 import type { TimelineCfg } from './TimelineConfig';
@@ -51,8 +51,9 @@ export class GanttView implements SubView {
     this.container.empty();
     this.container.addClass('pm-gantt-view');
 
-    this.flatTasks = flattenTasks(this.project.tasks).filter(f => f.visible || f.depth === 0);
-    this.cfg = buildTimelineConfig(this.project.tasks, this.granularity);
+    const activeTasks = filterArchived(this.project.tasks);
+    this.flatTasks = flattenTasks(activeTasks).filter(f => f.visible || f.depth === 0);
+    this.cfg = buildTimelineConfig(activeTasks, this.granularity);
 
     this.renderGranularityControls();
     this.renderGantt();
@@ -201,7 +202,8 @@ export class GanttView implements SubView {
         }
       }
     };
-    renderFlatList(this.project.tasks, 0);
+    const activeTasks = filterArchived(this.project.tasks);
+    renderFlatList(activeTasks, 0);
   }
 
   private makeRendererContext(): RendererContext {

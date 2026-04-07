@@ -37,8 +37,8 @@ export class KanbanView implements SubView {
   }
 
   private getTasksForStatus(status: TaskStatus): Task[] {
-    // Flatten, filter by status (only top-level for kanban)
-    return this.project.tasks.filter(t => t.status === status);
+    // Flatten, filter by status (only top-level for kanban), exclude archived
+    return this.project.tasks.filter(t => t.status === status && !t.archived);
   }
 
   private renderColumn(board: HTMLElement, status: { id: string; label: string; color: string; icon: string }, tasks: Task[]): void {

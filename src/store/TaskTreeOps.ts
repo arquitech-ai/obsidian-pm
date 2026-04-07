@@ -95,6 +95,13 @@ export function moveTaskInTree(
   return false;
 }
 
+/** Filter archived tasks from a task tree (returns a shallow copy) */
+export function filterArchived(tasks: Task[]): Task[] {
+  return tasks
+    .filter(t => !t.archived)
+    .map(t => t.subtasks.length ? { ...t, subtasks: filterArchived(t.subtasks) } : t);
+}
+
 /** Sum all logged hours for a task */
 export function totalLoggedHours(task: Task): number {
   if (!task.timeLogs?.length) return 0;
