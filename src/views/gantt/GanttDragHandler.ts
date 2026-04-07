@@ -88,11 +88,14 @@ export function attachDragHandle(
       const finalX = parseFloat(drag.dragBarEl.getAttribute('x') ?? '0');
       const finalW = parseFloat(drag.dragBarEl.getAttribute('width') ?? '0');
 
+      const snappedX = snapX(finalX, snapPoints, snapThreshold);
+      const snappedRight = snapX(finalX + finalW, snapPoints, snapThreshold);
+
       const patch: Partial<Task> = {};
       if (drag.dragSide === 'left') {
-        patch.start = dateToIso(xToDate(cfg, finalX));
+        patch.start = dateToIso(xToDate(cfg, snappedX));
       } else {
-        const endD = xToDate(cfg, finalX + finalW);
+        const endD = xToDate(cfg, snappedRight);
         endD.setDate(endD.getDate() - 1);
         patch.due = dateToIso(endD);
       }
