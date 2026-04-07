@@ -102,11 +102,15 @@ export class ProjectStore {
 
     const taskMap = new Map<string, Task>();
     const subtaskIdsMap = new Map<string, string[]>();
+    const archivePrefix = normalizePath(folderPath + '/Archive') + '/';
 
     const files = this.app.vault.getMarkdownFiles().filter(f => f.path.startsWith(folderPath + '/'));
     for (const file of files) {
       const { task, subtaskIds } = await this.loadTaskFile(file);
       if (task) {
+        if (file.path.startsWith(archivePrefix)) {
+          task.archived = true;
+        }
         taskMap.set(task.id, task);
         if (subtaskIds.length) subtaskIdsMap.set(task.id, subtaskIds);
       }
@@ -182,7 +186,12 @@ export class ProjectStore {
 
   private async saveAllTasks(tasks: Task[], project: Project, parentTask: Task | null, folder: string): Promise<void> {
     for (const task of tasks) {
-      await this.saveTaskFile(task, project, parentTask, folder);
+      let targetFolder = folder;
+      if (task.archived) {
+        targetFolder = normalizePath(folder + '/Archive');
+        await this.ensureFolder(targetFolder);
+      }
+      await this.saveTaskFile(task, project, parentTask, targetFolder);
       if (task.subtasks.length) {
         await this.saveAllTasks(task.subtasks, project, task, folder);
       }
@@ -262,6 +271,41 @@ export class ProjectStore {
       deleteTaskFromTree(project.tasks, id);
     }
     await this.saveProject(project);
+  }
+
+  async archiveTask(project: Project, taskId: string): Promise<void> {
+    const task = findTask(project.tasks, taskId);
+    if (!task || !task.filePath) return;
+
+    const taskFolder = this.projectTaskFolder(project);
+    const archiveFolder = normalizePath(taskFolder + '/Archive');
+    await this.ensureFolder(archiveFolder);
+
+    const fileName = task.filePath.split('/').pop()!;
+    const newPath = normalizePath(archiveFolder + '/' + fileName);
+
+    const file = this.app.vault.getAbstractFileByPath(task.filePath);
+    if (file instanceof TFile) {
+      await this.app.vault.rename(file, newPath);
+      task.filePath = newPath;
+      task.archived = true;
+    }
+  }
+
+  async unarchiveTask(project: Project, taskId: string): Promise<void> {
+    const task = findTask(project.tasks, taskId);
+    if (!task || !task.filePath) return;
+
+    const taskFolder = this.projectTaskFolder(project);
+    const fileName = task.filePath.split('/').pop()!;
+    const newPath = normalizePath(taskFolder + '/' + fileName);
+
+    const file = this.app.vault.getAbstractFileByPath(task.filePath);
+    if (file instanceof TFile) {
+      await this.app.vault.rename(file, newPath);
+      task.filePath = newPath;
+      task.archived = false;
+    }
   }
 
   async deleteTask(project: Project, taskId: string): Promise<void> {

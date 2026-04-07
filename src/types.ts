@@ -49,6 +49,7 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   filePath?: string;   // vault path to this task's .md file
+  archived?: boolean;  // runtime only — derived from file location in Archive/ subfolder
 }
 
 export interface Project {
