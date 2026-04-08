@@ -167,33 +167,47 @@ export class ProjectStore {
   }
 
   private async doSaveProject(project: Project): Promise<void> {
-    project.updatedAt = new Date().toISOString();
+    try {
+      project.updatedAt = new Date().toISOString();
 
-    const taskFolder = this.projectTaskFolder(project);
-    await this.ensureFolder(taskFolder);
+      const taskFolder = this.projectTaskFolder(project);
+      await this.ensureFolder(taskFolder);
 
-    await this.saveAllTasks(project.tasks, project, null, taskFolder);
+      await this.saveAllTasks(project.tasks, project, null, taskFolder);
 
-    const content = serializeProject(project);
-    const file = this.app.vault.getAbstractFileByPath(project.filePath);
-    if (file instanceof TFile) {
-      await this.app.vault.modify(file, content);
-    } else {
-      await this.app.vault.create(project.filePath, content);
+      const content = serializeProject(project);
+      const file = this.app.vault.getAbstractFileByPath(project.filePath);
+      if (file instanceof TFile) {
+        await this.app.vault.modify(file, content);
+      } else {
+        await this.app.vault.create(project.filePath, content);
+      }
+    } catch (e) {
+      console.error(`[PM] Failed to save project "${project.title}":`, e);
+      new Notice(`Project Manager: Failed to save "${project.title}". Check console for details.`);
+      throw e;
     }
   }
 
   private async saveAllTasks(tasks: Task[], project: Project, parentTask: Task | null, folder: string): Promise<void> {
+    const errors: Error[] = [];
     for (const task of tasks) {
-      let targetFolder = folder;
-      if (task.archived) {
-        targetFolder = normalizePath(folder + '/Archive');
-        await this.ensureFolder(targetFolder);
+      try {
+        let targetFolder = folder;
+        if (task.archived) {
+          targetFolder = normalizePath(folder + '/Archive');
+          await this.ensureFolder(targetFolder);
+        }
+        await this.saveTaskFile(task, project, parentTask, targetFolder);
+        if (task.subtasks.length) {
+          await this.saveAllTasks(task.subtasks, project, task, folder);
+        }
+      } catch (e) {
+        errors.push(e instanceof Error ? e : new Error(String(e)));
       }
-      await this.saveTaskFile(task, project, parentTask, targetFolder);
-      if (task.subtasks.length) {
-        await this.saveAllTasks(task.subtasks, project, task, folder);
-      }
+    }
+    if (errors.length) {
+      throw new Error(`Failed to save ${errors.length} task(s): ${errors.map(e => e.message).join('; ')}`);
     }
   }
 
@@ -202,20 +216,25 @@ export class ProjectStore {
     const oldFilePath = task.filePath && task.filePath !== filePath ? task.filePath : null;
     task.filePath = filePath;
 
-    // Write new file first, then delete old — prevents data loss if interrupted
-    const content = serializeTask(task, project, parentTask);
-    const existing = this.app.vault.getAbstractFileByPath(filePath);
-    if (existing instanceof TFile) {
-      await this.app.vault.modify(existing, content);
-    } else {
-      await this.app.vault.create(filePath, content);
-    }
-
-    if (oldFilePath) {
-      const oldFile = this.app.vault.getAbstractFileByPath(oldFilePath);
-      if (oldFile instanceof TFile) {
-        await this.app.vault.delete(oldFile);
+    try {
+      // Write new file first, then delete old — prevents data loss if interrupted
+      const content = serializeTask(task, project, parentTask);
+      const existing = this.app.vault.getAbstractFileByPath(filePath);
+      if (existing instanceof TFile) {
+        await this.app.vault.modify(existing, content);
+      } else {
+        await this.app.vault.create(filePath, content);
       }
+
+      if (oldFilePath) {
+        const oldFile = this.app.vault.getAbstractFileByPath(oldFilePath);
+        if (oldFile instanceof TFile) {
+          await this.app.vault.delete(oldFile);
+        }
+      }
+    } catch (e) {
+      console.error(`[PM] Failed to save task "${task.title}" (${task.id}):`, e);
+      throw e;
     }
   }
 
