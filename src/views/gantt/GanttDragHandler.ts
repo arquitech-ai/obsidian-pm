@@ -1,6 +1,7 @@
 import { Notice } from 'obsidian';
 import type PMPlugin from '../../main';
 import type { Project, Task } from '../../types';
+import { safeAsync } from '../../utils';
 import type { TimelineCfg } from './TimelineConfig';
 import { xToDate, dateToIso, getSnapPoints, snapX } from './TimelineConfig';
 
@@ -77,7 +78,7 @@ export function attachDragHandle(
       drag.dragBarEl.setAttribute('width', String(newW));
     };
 
-    const onUp = async () => {
+    const onUp = safeAsync(async () => {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       activeCleanup = null;
@@ -109,7 +110,7 @@ export function attachDragHandle(
         return;
       }
       await onRefresh();
-    };
+    });
 
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);

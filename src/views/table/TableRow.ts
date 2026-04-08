@@ -1,7 +1,7 @@
 import { Menu, Notice } from 'obsidian';
 import type { Task, Project } from '../../types';
 import { totalLoggedHours } from '../../store/TaskTreeOps';
-import { stringToColor, formatDateLong, todayMidnight, isTaskOverdue, getStatusConfig, getPriorityConfig } from '../../utils';
+import { stringToColor, formatDateLong, todayMidnight, isTaskOverdue, getStatusConfig, getPriorityConfig, safeAsync } from '../../utils';
 import { COLOR_ACCENT } from '../../constants';
 import { renderStatusBadge, renderPriorityBadge } from '../../ui/StatusBadge';
 import { openTaskModal } from '../../ui/ModalFactory';
@@ -25,7 +25,7 @@ function makeInlineEdit(opts: InlineEditOpts): void {
   if (inputType === 'text') input.select();
 
   let saved = false;
-  const save = async () => {
+  const save = safeAsync(async () => {
     if (saved) return;
     saved = true;
     const newVal = input.value.trim();
@@ -34,7 +34,7 @@ function makeInlineEdit(opts: InlineEditOpts): void {
     } else {
       input.replaceWith(display);
     }
-  };
+  });
 
   input.addEventListener('blur', save);
   if (inputType === 'text') {
@@ -74,10 +74,10 @@ function renderExpandCell(row: HTMLElement, task: Task, ctx: TableContext): void
       cls: 'pm-expand-btn',
       attr: { 'aria-label': task.collapsed ? 'Expand subtasks' : 'Collapse subtasks' },
     });
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', safeAsync(async () => {
       await ctx.plugin.store.updateTask(ctx.project, task.id, { collapsed: !task.collapsed });
       await ctx.onRefresh();
-    });
+    }));
   }
 }
 
@@ -87,7 +87,7 @@ function renderTitleCell(row: HTMLElement, task: Task, depth: number, ctx: Table
 
   // Title text (click to open, dblclick to inline edit)
   const titleSpan = cell.createEl('span', { text: task.title, cls: 'pm-task-title-text' });
-  titleSpan.addEventListener('click', async () => {
+  titleSpan.addEventListener('click', () => {
     openTaskModal(ctx.plugin, ctx.project, { task, onSave: async () => { await ctx.onRefresh(); } });
   });
   titleSpan.addEventListener('dblclick', e => {
@@ -134,10 +134,10 @@ function renderStatusCell(row: HTMLElement, task: Task, ctx: TableContext): void
   const cell = row.createEl('td', { cls: 'pm-table-cell' });
   const statusConfig = getStatusConfig(ctx.plugin.settings.statuses, task.status);
   if (statusConfig) {
-    renderStatusBadge(cell, task, ctx.plugin.settings.statuses, async (status) => {
+    renderStatusBadge(cell, task, ctx.plugin.settings.statuses, safeAsync(async (status) => {
       await ctx.plugin.store.updateTask(ctx.project, task.id, { status });
       await ctx.onRefresh();
-    });
+    }));
   }
 }
 
@@ -145,10 +145,10 @@ function renderPriorityCell(row: HTMLElement, task: Task, ctx: TableContext): vo
   const cell = row.createEl('td', { cls: 'pm-table-cell' });
   const priorityConfig = getPriorityConfig(ctx.plugin.settings.priorities, task.priority);
   if (priorityConfig) {
-    renderPriorityBadge(cell, task, ctx.plugin.settings.priorities, async (priority) => {
+    renderPriorityBadge(cell, task, ctx.plugin.settings.priorities, safeAsync(async (priority) => {
       await ctx.plugin.store.updateTask(ctx.project, task.id, { priority });
       await ctx.onRefresh();
-    });
+    }));
   }
 }
 
@@ -237,30 +237,30 @@ function renderActionsCell(row: HTMLElement, task: Task, ctx: TableContext): voi
   const btn = cell.createEl('button', { text: '\u22ef', cls: 'pm-row-menu-btn', attr: { 'aria-label': 'Task actions' } });
   btn.addEventListener('click', e => {
     const menu = new Menu();
-    menu.addItem(item => item.setTitle('Edit task').setIcon('pencil').onClick(async () => {
+    menu.addItem(item => item.setTitle('Edit task').setIcon('pencil').onClick(() => {
       openTaskModal(ctx.plugin, ctx.project, { task, onSave: async () => { await ctx.onRefresh(); } });
     }));
-    menu.addItem(item => item.setTitle('Add subtask').setIcon('plus').onClick(async () => {
+    menu.addItem(item => item.setTitle('Add subtask').setIcon('plus').onClick(() => {
       openTaskModal(ctx.plugin, ctx.project, { parentId: task.id, onSave: async () => { await ctx.onRefresh(); } });
     }));
     menu.addSeparator();
     if (task.archived) {
-      menu.addItem(item => item.setTitle('Unarchive').setIcon('archive-restore').onClick(async () => {
+      menu.addItem(item => item.setTitle('Unarchive').setIcon('archive-restore').onClick(safeAsync(async () => {
         await ctx.plugin.store.unarchiveTask(ctx.project, task.id);
         new Notice('Task unarchived');
         await ctx.onRefresh();
-      }));
+      })));
     } else {
-      menu.addItem(item => item.setTitle('Archive').setIcon('archive').onClick(async () => {
+      menu.addItem(item => item.setTitle('Archive').setIcon('archive').onClick(safeAsync(async () => {
         await ctx.plugin.store.archiveTask(ctx.project, task.id);
         new Notice('Task archived');
         await ctx.onRefresh();
-      }));
+      })));
     }
-    menu.addItem(item => item.setTitle('Delete task').setIcon('trash').onClick(async () => {
+    menu.addItem(item => item.setTitle('Delete task').setIcon('trash').onClick(safeAsync(async () => {
       await ctx.plugin.store.deleteTask(ctx.project, task.id);
       await ctx.onRefresh();
-    }));
+    })));
     menu.showAtMouseEvent(e as MouseEvent);
   });
 }

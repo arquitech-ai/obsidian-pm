@@ -2,7 +2,7 @@ import { Menu, Notice } from 'obsidian';
 import type PMPlugin from '../main';
 import { Project, Task, TaskStatus } from '../types';
 import { flattenTasks, totalLoggedHours } from '../store/TaskTreeOps';
-import { stringToColor, formatDateShort, isTaskOverdue, getPriorityConfig, formatBadgeText } from '../utils';
+import { stringToColor, formatDateShort, isTaskOverdue, getPriorityConfig, formatBadgeText, safeAsync } from '../utils';
 import { openTaskModal } from '../ui/ModalFactory';
 import { COLOR_ACCENT } from '../constants';
 import type { SubView } from './SubView';
@@ -94,7 +94,7 @@ export class KanbanView implements SubView {
       cardsEl.removeClass('pm-kanban-drop-target');
     });
 
-    cardsEl.addEventListener('drop', async e => {
+    cardsEl.addEventListener('drop', safeAsync(async (e: DragEvent) => {
       e.preventDefault();
       cardsEl.removeClass('pm-kanban-drop-target');
       if (!this.dragTask) return;
@@ -104,7 +104,7 @@ export class KanbanView implements SubView {
         await this.onRefresh();
       }
       this.dragTask = null;
-    });
+    }));
 
   }
 
@@ -195,7 +195,7 @@ export class KanbanView implements SubView {
     });
 
     // Click to open
-    card.addEventListener('click', async () => {
+    card.addEventListener('click', () => {
       openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
     });
 
@@ -203,29 +203,29 @@ export class KanbanView implements SubView {
     card.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       const menu = new Menu();
-      menu.addItem(item => item.setTitle('Edit task').setIcon('pencil').onClick(async () => {
+      menu.addItem(item => item.setTitle('Edit task').setIcon('pencil').onClick(() => {
         openTaskModal(this.plugin, this.project, { task, onSave: async () => { await this.onRefresh(); } });
       }));
       menu.addSeparator();
       if (task.archived) {
-        menu.addItem(item => item.setTitle('Unarchive').setIcon('archive-restore').onClick(async () => {
+        menu.addItem(item => item.setTitle('Unarchive').setIcon('archive-restore').onClick(safeAsync(async () => {
           await this.plugin.store.unarchiveTask(this.project, task.id);
           new Notice('Task unarchived');
           await this.onRefresh();
-        }));
+        })));
       } else {
-        menu.addItem(item => item.setTitle('Archive').setIcon('archive').onClick(async () => {
+        menu.addItem(item => item.setTitle('Archive').setIcon('archive').onClick(safeAsync(async () => {
           await this.plugin.store.archiveTask(this.project, task.id);
           new Notice('Task archived');
           await this.onRefresh();
-        }));
+        })));
       }
-      menu.addItem(item => item.setTitle('Delete task').setIcon('trash').onClick(async () => {
+      menu.addItem(item => item.setTitle('Delete task').setIcon('trash').onClick(safeAsync(async () => {
         if (confirm(`Delete "${task.title}"?`)) {
           await this.plugin.store.deleteTask(this.project, task.id);
           await this.onRefresh();
         }
-      }));
+      })));
       menu.showAtMouseEvent(e as MouseEvent);
     });
   }

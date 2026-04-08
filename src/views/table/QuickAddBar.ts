@@ -3,6 +3,7 @@ import type PMPlugin from '../../main';
 import type { Project } from '../../types';
 import { makeTask } from '../../types';
 import { addTaskToTree, deleteTaskFromTree } from '../../store/TaskTreeOps';
+import { safeAsync } from '../../utils';
 
 export function renderQuickAddBar(
   container: HTMLElement,
@@ -16,7 +17,7 @@ export function renderQuickAddBar(
     placeholder: 'Quick add task… (press Enter)',
     cls: 'pm-quick-add-input',
   });
-  input.addEventListener('keydown', async (e) => {
+  input.addEventListener('keydown', safeAsync(async (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
       const title = input.value.trim();
       if (!title) return;
@@ -37,7 +38,7 @@ export function renderQuickAddBar(
       input.value = '';
       input.blur();
     }
-  });
+  }));
 }
 
 export function focusQuickAdd(container: HTMLElement): void {

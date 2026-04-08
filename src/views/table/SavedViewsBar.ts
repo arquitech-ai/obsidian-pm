@@ -2,6 +2,7 @@ import { Menu } from 'obsidian';
 import type PMPlugin from '../../main';
 import type { Project, FilterState, SavedView } from '../../types';
 import { makeId, makeDefaultFilter } from '../../types';
+import { safeAsync } from '../../utils';
 
 export interface SavedViewsContext {
   project: Project;
@@ -49,19 +50,19 @@ export function renderSavedViewsBar(container: HTMLElement, ctx: SavedViewsConte
     pill.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       const menu = new Menu();
-      menu.addItem(item => item.setTitle('Update with current filters').setIcon('refresh-cw').onClick(async () => {
+      menu.addItem(item => item.setTitle('Update with current filters').setIcon('refresh-cw').onClick(safeAsync(async () => {
         sv.filter = { ...ctx.filter };
         sv.sortKey = ctx.sortKey;
         sv.sortDir = ctx.sortDir;
         await ctx.plugin.store.saveProject(ctx.project);
         ctx.rerender();
-      }));
-      menu.addItem(item => item.setTitle('Delete view').setIcon('trash').onClick(async () => {
+      })));
+      menu.addItem(item => item.setTitle('Delete view').setIcon('trash').onClick(safeAsync(async () => {
         ctx.project.savedViews = ctx.project.savedViews.filter(v => v.id !== sv.id);
         if (ctx.activeSavedViewId === sv.id) ctx.setActiveSavedViewId(null);
         await ctx.plugin.store.saveProject(ctx.project);
         ctx.rerender();
-      }));
+      })));
       menu.showAtMouseEvent(e as MouseEvent);
     });
   }
@@ -77,7 +78,7 @@ export function renderSavedViewsBar(container: HTMLElement, ctx: SavedViewsConte
       input.focus();
 
       let committed = false;
-      const commit = async () => {
+      const commit = safeAsync(async () => {
         if (committed) return;
         committed = true;
         const name = input.value.trim();
@@ -97,7 +98,7 @@ export function renderSavedViewsBar(container: HTMLElement, ctx: SavedViewsConte
         ctx.setActiveSavedViewId(sv.id);
         await ctx.plugin.store.saveProject(ctx.project);
         ctx.rerender();
-      };
+      });
 
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); commit(); }

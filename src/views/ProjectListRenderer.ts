@@ -1,6 +1,7 @@
 import { TFile, Menu } from 'obsidian';
 import type PMPlugin from '../main';
 import type { Task } from '../types';
+import { safeAsync } from '../utils';
 import { openProjectModal } from '../ui/ModalFactory';
 
 export interface ProjectListContext {
@@ -16,7 +17,7 @@ export function renderProjectListToolbar(ctx: ProjectListContext): void {
   ctx.toolbarEl.createEl('h2', { text: '\ud83d\udccb Project Manager', cls: 'pm-toolbar-title' });
 
   const newBtn = ctx.toolbarEl.createEl('button', { text: '+ New Project', cls: 'pm-btn pm-btn-primary' });
-  newBtn.addEventListener('click', async () => {
+  newBtn.addEventListener('click', () => {
     openProjectModal(ctx.plugin, { onSave: async project => {
       const file = ctx.plugin.app.vault.getAbstractFileByPath(project.filePath) as TFile;
       if (file) await ctx.openProjectFile(file);
@@ -36,7 +37,7 @@ export async function renderProjectListContent(ctx: ProjectListContext): Promise
     empty.createEl('h3', { text: 'No projects yet' });
     empty.createEl('p', { text: 'Create your first project to get started.' });
     const btn = empty.createEl('button', { text: '+ New Project', cls: 'pm-btn pm-btn-primary' });
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', () => {
       openProjectModal(ctx.plugin, { onSave: async project => {
         const file = ctx.plugin.app.vault.getAbstractFileByPath(project.filePath) as TFile;
         if (file) await ctx.openProjectFile(file);
@@ -67,23 +68,23 @@ export async function renderProjectListContent(ctx: ProjectListContext): Promise
     fill.style.width = total ? `${Math.round((done / total) * 100)}%` : '0%';
     fill.style.background = project.color;
 
-    card.addEventListener('click', async () => {
+    card.addEventListener('click', safeAsync(async () => {
       const file = ctx.plugin.app.vault.getAbstractFileByPath(project.filePath);
       if (file instanceof TFile) await ctx.openProjectFile(file);
-    });
+    }));
 
     // Context menu
     card.addEventListener('contextmenu', (e: MouseEvent) => {
       const menu = new Menu();
-      menu.addItem(item => item.setTitle('Edit project').setIcon('settings').onClick(async () => {
+      menu.addItem(item => item.setTitle('Edit project').setIcon('settings').onClick(() => {
         openProjectModal(ctx.plugin, { project, onSave: async () => {
           await renderProjectListContent(ctx);
         } });
       }));
-      menu.addItem(item => item.setTitle('Delete project').setIcon('trash').onClick(async () => {
+      menu.addItem(item => item.setTitle('Delete project').setIcon('trash').onClick(safeAsync(async () => {
         await ctx.plugin.store.deleteProject(project);
         await renderProjectListContent(ctx);
-      }));
+      })));
       menu.showAtMouseEvent(e);
     });
   }

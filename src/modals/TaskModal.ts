@@ -2,6 +2,7 @@ import { App, Modal, Notice } from 'obsidian';
 import type PMPlugin from '../main';
 import { Project, Task, makeTask } from '../types';
 import { flattenTasks } from '../store/TaskTreeOps';
+import { safeAsync } from '../utils';
 import { renderStatusDot } from '../ui/StatusBadge';
 import { renderTaskFormFields } from './TaskFormFields';
 import { renderTimeTrackingPanel } from './TimeTrackingPanel';
@@ -128,33 +129,33 @@ export class TaskModal extends Modal {
     if (!this.isNew) {
       if (this.task.archived) {
         const unarchiveBtn = footer.createEl('button', { text: 'Unarchive', cls: 'pm-btn pm-btn-ghost' });
-        unarchiveBtn.addEventListener('click', async () => {
+        unarchiveBtn.addEventListener('click', safeAsync(async () => {
           await this.plugin.store.unarchiveTask(this.project, this.task.id);
           new Notice('Task unarchived');
           await this.onSave(this.task);
           this.cancelled = true;
           this.close();
-        });
+        }));
       } else {
         const archiveBtn = footer.createEl('button', { text: 'Archive', cls: 'pm-btn pm-btn-ghost' });
-        archiveBtn.addEventListener('click', async () => {
+        archiveBtn.addEventListener('click', safeAsync(async () => {
           await this.plugin.store.archiveTask(this.project, this.task.id);
           new Notice('Task archived');
           await this.onSave(this.task);
           this.cancelled = true;
           this.close();
-        });
+        }));
       }
 
       const deleteBtn = footer.createEl('button', { text: 'Delete', cls: 'pm-btn pm-btn-danger' });
-      deleteBtn.addEventListener('click', async () => {
+      deleteBtn.addEventListener('click', safeAsync(async () => {
         if (confirm(`Delete "${this.task.title}"?`)) {
           await this.plugin.store.deleteTask(this.project, this.task.id);
           await this.onSave(this.task);
           this.cancelled = true;
           this.close();
         }
-      });
+      }));
     }
 
     footer.createDiv('pm-footer-spacer');
@@ -167,7 +168,7 @@ export class TaskModal extends Modal {
       cls: 'pm-btn pm-btn-primary',
     });
     let saving = false;
-    const doSave = async () => {
+    const doSave = safeAsync(async () => {
       if (saving) return;
       saving = true;
       if (!this.task.title.trim()) {
@@ -179,7 +180,7 @@ export class TaskModal extends Modal {
       await this.persistTask();
       this.saved = true;
       this.close();
-    };
+    });
 
     saveBtn.addEventListener('click', doSave);
     this.modalEl.addEventListener('keydown', (e: KeyboardEvent) => {

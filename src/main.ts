@@ -7,6 +7,7 @@ import { ProjectView, PM_VIEW_TYPE } from './views/ProjectView';
 import { openProjectModal, openTaskModal, openProjectPicker, openTaskPicker } from './ui/ModalFactory';
 import { Notifier } from './components/Notifier';
 import { migrateProjects } from './migration';
+import { safeAsync } from './utils';
 
 export default class PMPlugin extends Plugin {
   settings: PMSettings = { ...DEFAULT_SETTINGS };
@@ -23,21 +24,21 @@ export default class PMPlugin extends Plugin {
 
     // Open project files in the custom view
     this.registerExtensions([], 'md'); // handled via onOpenFile
-    this.app.workspace.onLayoutReady(async () => {
+    this.app.workspace.onLayoutReady(safeAsync(async () => {
       // Run migration for old-format projects
       await migrateProjects(this);
 
       this.registerEvent(
-        this.app.workspace.on('file-open', async (file: TFile | null) => {
+        this.app.workspace.on('file-open', safeAsync(async (file: TFile | null) => {
           if (!file) return;
           const cache = this.app.metadataCache.getFileCache(file);
           const fm = cache?.frontmatter;
           if (fm?.['pm-project'] === true) {
             await this.openProjectFile(file);
           }
-        }),
+        })),
       );
-    });
+    }));
 
     // Ribbon icon
     this.addRibbonIcon('chart-gantt', 'Project Manager', async () => {

@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf, TFile, EventRef } from 'obsidian';
 import type PMPlugin from '../main';
 import { Project, ViewMode } from '../types';
-import { truncateTitle } from '../utils';
+import { truncateTitle, safeAsync } from '../utils';
 import type { SubView } from './SubView';
 import { TableView } from './table/TableView';
 import type { TableViewState } from './table/TableView';
@@ -81,18 +81,18 @@ export class ProjectView extends ItemView {
     this.fileModifyRef = this.app.vault.on('modify', (file) => {
       if (!(file instanceof TFile) || !reloadIfRelevant(file.path)) return;
       if (this.reloadDebounceTimer !== null) window.clearTimeout(this.reloadDebounceTimer);
-      this.reloadDebounceTimer = window.setTimeout(async () => {
+      this.reloadDebounceTimer = window.setTimeout(safeAsync(async () => {
         this.reloadDebounceTimer = null;
         await this.loadProject();
-      }, 300);
+      }), 300);
     });
     this.registerEvent(this.fileModifyRef);
     this.registerEvent(
-      this.app.vault.on('delete', async (file) => {
+      this.app.vault.on('delete', safeAsync(async (file) => {
         if (reloadIfRelevant(file.path)) {
           await this.loadProject();
         }
-      }),
+      })),
     );
   }
 
@@ -167,7 +167,7 @@ export class ProjectView extends ItemView {
     // Left: icon, title, description
     const left = this.toolbarEl.createDiv('pm-toolbar-left');
     const iconEl = left.createEl('span', { text: this.project.icon, cls: 'pm-toolbar-icon', attr: { 'aria-label': 'Edit project', role: 'button', tabindex: '0' } });
-    iconEl.addEventListener('click', async () => {
+    iconEl.addEventListener('click', () => {
       openProjectModal(this.plugin, { project: this.project, onSave: async updated => {
         this.project = updated;
         this.renderProjectToolbar();
@@ -176,11 +176,11 @@ export class ProjectView extends ItemView {
 
     this.titleEl2 = left.createEl('h2', { text: this.project.title, cls: 'pm-toolbar-title' });
     this.titleEl2.contentEditable = 'true';
-    this.titleEl2.addEventListener('blur', async () => {
+    this.titleEl2.addEventListener('blur', safeAsync(async () => {
       if (!this.project) return;
       this.project.title = this.titleEl2.textContent?.trim() ?? this.project.title;
       await this.plugin.store.saveProject(this.project);
-    });
+    }));
 
     // Center: view switcher
     const switcher = this.toolbarEl.createDiv('pm-view-switcher');
@@ -205,14 +205,14 @@ export class ProjectView extends ItemView {
     // Right: actions
     const right = this.toolbarEl.createDiv('pm-toolbar-right');
     const addBtn = right.createEl('button', { text: '+ Add Task', cls: 'pm-btn pm-btn-primary' });
-    addBtn.addEventListener('click', async () => {
+    addBtn.addEventListener('click', () => {
       if (!this.project) return;
       openTaskModal(this.plugin, this.project, { onSave: async () => { await this.refreshProject(); } });
     });
 
     if (this.currentView === 'gantt') {
       const milestoneBtn = right.createEl('button', { text: '+ Milestone', cls: 'pm-btn pm-btn-ghost' });
-      milestoneBtn.addEventListener('click', async () => {
+      milestoneBtn.addEventListener('click', () => {
         if (!this.project) return;
         openTaskModal(this.plugin, this.project, { defaults: { type: 'milestone' }, onSave: async () => { await this.refreshProject(); } });
       });
@@ -220,7 +220,7 @@ export class ProjectView extends ItemView {
 
     const settingsBtn = right.createEl('button', { cls: 'pm-btn pm-btn-icon', attr: { 'aria-label': 'Project settings' } });
     settingsBtn.createEl('span', { text: '⚙' });
-    settingsBtn.addEventListener('click', async () => {
+    settingsBtn.addEventListener('click', () => {
       openProjectModal(this.plugin, { project: this.project, onSave: async updated => {
         this.project = updated;
         this.renderProjectToolbar();

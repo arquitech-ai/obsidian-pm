@@ -1,3 +1,4 @@
+import { Notice } from 'obsidian';
 import type { Task, StatusConfig, PriorityConfig, TaskStatus, TaskPriority } from './types';
 
 /** Deterministic HSL color from a string (e.g. assignee name) */
@@ -69,6 +70,16 @@ export function getPriorityConfig(priorities: PriorityConfig[], id: TaskPriority
 /** Format a config's icon + label into display text (e.g. "🔴 Critical") */
 export function formatBadgeText(icon: string | undefined, label: string): string {
   return [icon, label].filter(Boolean).join(' ');
+}
+
+/** Wrap an async callback so unhandled rejections show a Notice and log to console */
+export function safeAsync<A extends unknown[]>(fn: (...args: A) => Promise<void>): (...args: A) => void {
+  return (...args: A) => {
+    fn(...args).catch((err: unknown) => {
+      console.error('[PM]', err);
+      new Notice('Something went wrong. Check the console for details.');
+    });
+  };
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
