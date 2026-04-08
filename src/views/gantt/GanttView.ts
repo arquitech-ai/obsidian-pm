@@ -152,11 +152,6 @@ export class GanttView implements SubView {
     renderDependencyArrows(ctx);
     renderMilestoneLabels(ctx);
 
-    // Sync vertical scroll: right → left
-    rightPanel.addEventListener('scroll', () => {
-      leftBody.scrollTop = rightPanel.scrollTop;
-    });
-
     // Forward wheel events from left panel to the scroll container
     // (left panel has overflow:hidden, so wheel events are swallowed otherwise)
     const onLeftWheel = (e: WheelEvent) => {
@@ -175,7 +170,24 @@ export class GanttView implements SubView {
       openTaskModal(this.plugin, this.project, { onSave: async () => { await this.onRefresh(); } });
     });
 
+    // Spacer compensates for horizontal scrollbar in the right panel.
+    // The scrollbar reduces the right panel's viewport height, letting it
+    // scroll further than the left body. Without this, rows desync at the bottom.
+    const leftSpacer = leftBody.createDiv();
+    leftSpacer.style.flexShrink = '0';
+    const syncSpacer = () => {
+      const hScrollbarH = rightPanel.offsetHeight - rightPanel.clientHeight;
+      leftSpacer.style.height = `${hScrollbarH}px`;
+    };
+
+    // Sync vertical scroll: right → left
+    rightPanel.addEventListener('scroll', () => {
+      syncSpacer();
+      leftBody.scrollTop = rightPanel.scrollTop;
+    });
+
     requestAnimationFrame(() => {
+      syncSpacer();
       if (this.pendingScroll) {
         this.scrollEl.scrollTop = this.pendingScroll.top;
         this.scrollEl.scrollLeft = this.pendingScroll.left;
