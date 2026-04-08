@@ -3,7 +3,7 @@ import type { Project } from '../../types';
 import type { FlatTask } from '../../store/TaskTreeOps';
 import type { TimelineCfg } from './TimelineConfig';
 import {
-  DAY_MS, ROW_HEIGHT, HEADER_HEIGHT,
+  ROW_HEIGHT, HEADER_HEIGHT,
   dateToX,
 } from './TimelineConfig';
 import { svgEl } from '../../utils';
@@ -32,7 +32,7 @@ export function renderGridLines(ctx: RendererContext, totalRows: number): void {
   const { startDate, totalDays, dayWidth, granularity } = ctx.cfg;
 
   for (let i = 0; i < totalDays; i++) {
-    const d = new Date(startDate.getTime() + i * DAY_MS);
+    const d = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
     const x = i * dayWidth;
     const isWeekend = d.getDay() === 0 || d.getDay() === 6;
     const isMonday  = d.getDay() === 1;

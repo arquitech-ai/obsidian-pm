@@ -1,6 +1,6 @@
 import type { RendererContext } from './GanttRenderer';
 import {
-  DAY_MS, HEADER_HEIGHT,
+  HEADER_HEIGHT,
   dateToX, getWeekNumber,
 } from './TimelineConfig';
 import { svgEl } from '../../utils';
@@ -28,7 +28,7 @@ function renderDayHeader(g: SVGGElement, ctx: RendererContext): void {
   const { startDate, totalDays, dayWidth } = ctx.cfg;
   renderMonthBands(g, 0, 24, ctx);
   for (let i = 0; i < totalDays; i++) {
-    const d = new Date(startDate.getTime() + i * DAY_MS);
+    const d = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
     const x = i * dayWidth;
     const isWeekend = d.getDay() === 0 || d.getDay() === 6;
     if (isWeekend) {
@@ -69,7 +69,7 @@ function renderWeekHeader(g: SVGGElement, ctx: RendererContext): void {
   // Full weeks from each Monday
   let i = offsetToMonday;
   while (i < totalDays) {
-    const d = new Date(startDate.getTime() + i * DAY_MS);
+    const d = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
     const weekNum = getWeekNumber(d);
     const x = i * dayWidth;
     const w = Math.min(7, totalDays - i) * dayWidth;
@@ -92,9 +92,9 @@ function renderMonthHeader(g: SVGGElement, ctx: RendererContext): void {
   const date = new Date(startDate);
   while (date < ctx.cfg.endDate) {
     const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-    const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    const nextMonthStart = new Date(date.getFullYear(), date.getMonth() + 1, 1);
     const x1 = Math.max(0, dateToX(ctx.cfg, monthStart));
-    const x2 = Math.min(ctx.cfg.totalWidth, dateToX(ctx.cfg, new Date(monthEnd.getTime() + DAY_MS)));
+    const x2 = Math.min(ctx.cfg.totalWidth, dateToX(ctx.cfg, nextMonthStart));
     const w = x2 - x1;
     const text = svgEl('text', {
       x: x1 + w / 2, y: 44, class: 'pm-gantt-header-month',
@@ -115,9 +115,9 @@ function renderQuarterHeader(g: SVGGElement, ctx: RendererContext): void {
   const date = new Date(startDate.getFullYear(), Math.floor(startDate.getMonth() / 3) * 3, 1);
   while (date < ctx.cfg.endDate) {
     const q = Math.floor(date.getMonth() / 3) + 1;
-    const qEnd = new Date(date.getFullYear(), date.getMonth() + 3, 0);
+    const nextQStart = new Date(date.getFullYear(), date.getMonth() + 3, 1);
     const x1 = Math.max(0, dateToX(ctx.cfg, date));
-    const x2 = Math.min(ctx.cfg.totalWidth, dateToX(ctx.cfg, new Date(qEnd.getTime() + DAY_MS)));
+    const x2 = Math.min(ctx.cfg.totalWidth, dateToX(ctx.cfg, nextQStart));
     const text = svgEl('text', {
       x: x1 + (x2 - x1) / 2, y: 44, class: 'pm-gantt-header-quarter',
     });
@@ -131,9 +131,9 @@ function renderMonthBands(g: SVGGElement, y: number, h: number, ctx: RendererCon
   const date = new Date(ctx.cfg.startDate);
   while (date < ctx.cfg.endDate) {
     const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-    const monthEnd   = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    const nextMonthStart = new Date(date.getFullYear(), date.getMonth() + 1, 1);
     const x1 = Math.max(0, dateToX(ctx.cfg, monthStart));
-    const x2 = Math.min(ctx.cfg.totalWidth, dateToX(ctx.cfg, new Date(monthEnd.getTime() + DAY_MS)));
+    const x2 = Math.min(ctx.cfg.totalWidth, dateToX(ctx.cfg, nextMonthStart));
     const w = x2 - x1;
     g.appendChild(svgEl('rect', {
       x: x1, y, width: w, height: h,

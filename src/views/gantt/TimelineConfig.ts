@@ -68,7 +68,7 @@ export function buildTimelineConfig(tasks: Task[], granularity: GanttGranularity
   }
 
   const dayWidth = DAY_WIDTH[granularity];
-  const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / DAY_MS);
+  const totalDays = calendarDayDiff(startDate, endDate);
   return {
     startDate,
     endDate,
@@ -79,17 +79,24 @@ export function buildTimelineConfig(tasks: Task[], granularity: GanttGranularity
   };
 }
 
+/** Calendar-day difference, DST-safe (uses UTC noon to dodge transitions). */
+function calendarDayDiff(from: Date, to: Date): number {
+  const a = Date.UTC(from.getFullYear(), from.getMonth(), from.getDate(), 12);
+  const b = Date.UTC(to.getFullYear(), to.getMonth(), to.getDate(), 12);
+  return Math.round((b - a) / DAY_MS);
+}
+
 export function dateToX(cfg: TimelineCfg, date: Date): number {
-  const diff = (date.getTime() - cfg.startDate.getTime()) / DAY_MS;
-  return diff * cfg.dayWidth;
+  return calendarDayDiff(cfg.startDate, date) * cfg.dayWidth;
 }
 
 export function xToDate(cfg: TimelineCfg, x: number): Date {
-  const days = x / cfg.dayWidth;
-  const ms = cfg.startDate.getTime() + days * DAY_MS;
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const days = Math.round(x / cfg.dayWidth);
+  return new Date(
+    cfg.startDate.getFullYear(),
+    cfg.startDate.getMonth(),
+    cfg.startDate.getDate() + days,
+  );
 }
 
 export function dateToIso(d: Date): string {
@@ -111,7 +118,7 @@ export function getSnapPoints(cfg: TimelineCfg): number[] {
   const { startDate, totalDays, dayWidth, granularity } = cfg;
 
   for (let i = 0; i <= totalDays; i++) {
-    const d = new Date(startDate.getTime() + i * DAY_MS);
+    const d = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
     const x = i * dayWidth;
 
     if (granularity === 'day') {
