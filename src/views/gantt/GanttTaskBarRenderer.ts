@@ -1,5 +1,5 @@
 import type { Task } from '../../types';
-import { flattenTasks } from '../../store/TaskTreeOps';
+import { flattenTasks, filterArchived } from '../../store/TaskTreeOps';
 import { openTaskModal } from '../../ui/ModalFactory';
 import { COLOR_ACCENT } from '../../constants';
 import { svgEl, getStatusConfig } from '../../utils';
@@ -182,7 +182,8 @@ export function renderMilestoneLabels(ctx: RendererContext): void {
 // ─── Dependency arrows ─────────────────────────────────────────────────────
 
 export function renderDependencyArrows(ctx: RendererContext): void {
-  const allFlat = flattenTasks(ctx.project.tasks);
+  const activeTasks = filterArchived(ctx.project.tasks);
+  const allFlat = flattenTasks(activeTasks);
   const indexMap = new Map<string, number>();
   let visibleRow = 0;
   const countVisible = (tasks: Task[]) => {
@@ -192,7 +193,7 @@ export function renderDependencyArrows(ctx: RendererContext): void {
       if (!t.collapsed) countVisible(t.subtasks);
     }
   };
-  countVisible(ctx.project.tasks);
+  countVisible(activeTasks);
 
   const arrowGroup = svgEl('g', { class: 'pm-gantt-arrows' });
 

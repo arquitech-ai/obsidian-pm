@@ -1205,7 +1205,8 @@
   background: var(--pm-bg2);
   color: var(--pm-text);
   font-size: 13px;
-  resize: vertical;
+  resize: none;
+  overflow: hidden;
   box-sizing: border-box;
 }
 .pm-modal-description:focus { border-color: var(--pm-accent); outline: none; }

@@ -92,9 +92,15 @@ export class TaskModal extends Modal {
     const descArea = descSection.createEl('textarea', { cls: 'pm-modal-description' });
     descArea.placeholder = 'Add a description\u2026';
     descArea.value = this.task.description;
+    const autoResize = () => {
+      descArea.style.height = 'auto';
+      descArea.style.height = descArea.scrollHeight + 'px';
+    };
     descArea.addEventListener('input', () => {
       this.task.description = descArea.value;
+      autoResize();
     });
+    setTimeout(autoResize, 0);
 
     // ── Properties (collapsible) ────────────────────────────────────────────
     const propsContainer = contentEl.createDiv('pm-modal-props-container');
