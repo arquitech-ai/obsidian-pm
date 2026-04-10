@@ -16,6 +16,76 @@ export function confirmDialog(app: App, message: string, confirmLabel = 'Delete'
   });
 }
 
+/**
+ * Opens an Obsidian-native text input prompt.
+ * Returns the trimmed string, or null if cancelled/empty.
+ */
+export function promptText(app: App, label: string, placeholder = ''): Promise<string | null> {
+  return new Promise(resolve => {
+    const modal = new TextPromptModal(app, label, placeholder, resolve);
+    modal.open();
+  });
+}
+
+class TextPromptModal extends Modal {
+  private resolved = false;
+
+  constructor(
+    app: App,
+    private label: string,
+    private placeholder: string,
+    private resolve: (value: string | null) => void,
+  ) {
+    super(app);
+  }
+
+  private finish(value: string | null): void {
+    if (this.resolved) return;
+    this.resolved = true;
+    this.resolve(value);
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    this.modalEl.addClass('pm-prompt-modal');
+
+    contentEl.createEl('p', {
+      text: this.label,
+      attr: { style: 'margin: 0 0 0.75rem 0; color: var(--text-normal); font-size: var(--font-ui-medium);' },
+    });
+
+    const input = contentEl.createEl('input', {
+      type: 'text',
+      placeholder: this.placeholder,
+      attr: { style: 'width: 100%; padding: 0.5rem; margin-bottom: 1rem; border: 1px solid var(--background-modifier-border); border-radius: 4px; background: var(--background-primary); color: var(--text-normal); font-size: var(--font-ui-medium);' },
+    });
+
+    const btnRow = contentEl.createDiv({ attr: { style: 'display: flex; justify-content: flex-end; gap: 0.5rem;' } });
+
+    const cancelBtn = btnRow.createEl('button', { text: 'Cancel', cls: 'mod-muted' });
+    cancelBtn.addEventListener('click', () => { this.finish(null); this.close(); });
+
+    const okBtn = btnRow.createEl('button', { text: 'OK', cls: 'mod-cta' });
+    okBtn.addEventListener('click', () => {
+      const val = input.value.trim();
+      this.finish(val || null);
+      this.close();
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); okBtn.click(); }
+      if (e.key === 'Escape') { e.preventDefault(); this.finish(null); this.close(); }
+    });
+
+    setTimeout(() => input.focus(), 10);
+  }
+
+  onClose(): void {
+    this.finish(null);
+    this.contentEl.empty();
+  }
+}
+
 class ConfirmModal extends Modal {
   private resolved = false;
 

@@ -2,6 +2,7 @@ import { Menu } from 'obsidian';
 import type { Task, TaskStatus, TaskPriority } from '../../types';
 import { findTask } from '../../store/TaskTreeOps';
 import { formatBadgeText } from '../../utils';
+import { promptText } from '../../ui/ModalFactory';
 import type { TableContext } from './TableRenderer';
 import { updateSelectAllCheckbox } from './TableRow';
 
@@ -94,9 +95,9 @@ function updateBarContent(bar: HTMLElement, ctx: TableContext, onAction: (a: Bul
       menu.addItem(item => item.setTitle(m).onClick(() => onAction({ type: 'set-assignee', assignee: m })));
     }
     menu.addSeparator();
-    menu.addItem(item => item.setTitle('+ New assignee...').onClick(() => {
-      const name = prompt('Enter assignee name:');
-      if (name?.trim()) onAction({ type: 'set-assignee', assignee: name.trim() });
+    menu.addItem(item => item.setTitle('+ New assignee...').onClick(async () => {
+      const name = await promptText(ctx.plugin.app, 'Enter assignee name:', 'Name');
+      if (name) onAction({ type: 'set-assignee', assignee: name });
     }));
     menu.addSeparator();
     menu.addItem(item => item.setTitle('Clear assignees').onClick(() => onAction({ type: 'set-assignee', assignee: '' })));
@@ -112,9 +113,9 @@ function updateBarContent(bar: HTMLElement, ctx: TableContext, onAction: (a: Bul
       menu.addItem(item => item.setTitle(t).onClick(() => onAction({ type: 'set-tag', tag: t })));
     }
     menu.addSeparator();
-    menu.addItem(item => item.setTitle('+ New tag...').onClick(() => {
-      const tag = prompt('Enter tag:');
-      if (tag?.trim()) onAction({ type: 'set-tag', tag: tag.trim() });
+    menu.addItem(item => item.setTitle('+ New tag...').onClick(async () => {
+      const tag = await promptText(ctx.plugin.app, 'Enter tag:', 'Tag');
+      if (tag) onAction({ type: 'set-tag', tag: tag });
     }));
     menu.addSeparator();
     menu.addItem(item => item.setTitle('Clear tags').onClick(() => onAction({ type: 'set-tag', tag: '' })));
