@@ -19,8 +19,8 @@ export function renderProjectListToolbar(ctx: ProjectListContext): void {
   const newBtn = ctx.toolbarEl.createEl('button', { text: '+ New Project', cls: 'pm-btn pm-btn-primary' });
   newBtn.addEventListener('click', () => {
     openProjectModal(ctx.plugin, { onSave: async project => {
-      const file = ctx.plugin.app.vault.getAbstractFileByPath(project.filePath) as TFile;
-      if (file) await ctx.openProjectFile(file);
+      const file = ctx.plugin.app.vault.getAbstractFileByPath(project.filePath);
+      if (file instanceof TFile) await ctx.openProjectFile(file);
     } });
   });
 }
@@ -39,8 +39,8 @@ export async function renderProjectListContent(ctx: ProjectListContext): Promise
     const btn = empty.createEl('button', { text: '+ New Project', cls: 'pm-btn pm-btn-primary' });
     btn.addEventListener('click', () => {
       openProjectModal(ctx.plugin, { onSave: async project => {
-        const file = ctx.plugin.app.vault.getAbstractFileByPath(project.filePath) as TFile;
-        if (file) await ctx.openProjectFile(file);
+        const file = ctx.plugin.app.vault.getAbstractFileByPath(project.filePath);
+        if (file instanceof TFile) await ctx.openProjectFile(file);
       } });
     });
     return;

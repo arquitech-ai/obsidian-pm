@@ -57,9 +57,8 @@ export default class PMPlugin extends Plugin {
       name: 'Create new project',
       callback: () => {
         openProjectModal(this, { onSave: async project => {
-          await this.openProjectFile(
-            this.app.vault.getAbstractFileByPath(project.filePath) as TFile,
-          );
+          const file = this.app.vault.getAbstractFileByPath(project.filePath);
+          if (file instanceof TFile) await this.openProjectFile(file);
         } });
       },
     });
