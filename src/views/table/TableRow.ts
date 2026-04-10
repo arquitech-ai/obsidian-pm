@@ -1,7 +1,7 @@
 import { Menu, Notice } from 'obsidian';
 import type { Task, Project } from '../../types';
 import { totalLoggedHours } from '../../store/TaskTreeOps';
-import { stringToColor, formatDateLong, todayMidnight, isTaskOverdue, getStatusConfig, getPriorityConfig, safeAsync } from '../../utils';
+import { stringToColor, formatDateLong, todayMidnight, isTaskOverdue, getStatusConfig, getPriorityConfig, safeAsync, stringifyCustomValue } from '../../utils';
 import { COLOR_ACCENT } from '../../constants';
 import { renderStatusBadge, renderPriorityBadge } from '../../ui/StatusBadge';
 import { openTaskModal } from '../../ui/ModalFactory';
@@ -269,7 +269,8 @@ function renderCustomFieldCells(row: HTMLElement, task: Task, project: Project):
   for (const cf of project.customFields) {
     const cell = row.createEl('td', { cls: 'pm-table-cell' });
     const val = task.customFields[cf.id];
-    cell.createEl('span', { text: val !== undefined ? String(val) : '\u2014', cls: 'pm-cf-value' });
+    const display = val !== undefined ? stringifyCustomValue(val) : '';
+    cell.createEl('span', { text: display || '\u2014', cls: 'pm-cf-value' });
   }
 }
 

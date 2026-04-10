@@ -46,6 +46,15 @@ export function isTaskDueSoon(task: Task, days: number): boolean {
   return dueDate >= today && dueDate.getTime() <= today.getTime() + days * 86400_000;
 }
 
+/** Safely convert a custom-field value to a display string.
+ *  Arrays are joined with ", "; objects fall back to '' to avoid [object Object]. */
+export function stringifyCustomValue(val: unknown): string {
+  if (val === undefined || val === null) return '';
+  if (Array.isArray(val)) return val.map(v => String(v)).join(', ');
+  if (typeof val === 'object') return '';
+  return String(val);
+}
+
 /** Truncate a title for display (e.g. tab header) */
 export function truncateTitle(title: string, maxLen = 20): string {
   if (title.length <= maxLen) return title;

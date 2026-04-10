@@ -1,6 +1,7 @@
 import { Menu } from 'obsidian';
 import type PMPlugin from '../main';
 import type { Project, Task, CustomFieldDef } from '../types';
+import { stringifyCustomValue } from '../utils';
 
 export function renderCustomFieldInput(
   cf: CustomFieldDef,
@@ -14,20 +15,20 @@ export function renderCustomFieldInput(
     case 'text':
     case 'url': {
       const input = wrap.createEl('input', { type: cf.type === 'url' ? 'url' : 'text', cls: 'pm-prop-text' });
-      input.value = String(currentVal ?? '');
+      input.value = stringifyCustomValue(currentVal);
       input.placeholder = cf.name;
       input.addEventListener('change', () => { task.customFields[cf.id] = input.value; });
       break;
     }
     case 'number': {
       const input = wrap.createEl('input', { type: 'number', cls: 'pm-prop-text' });
-      input.value = String(currentVal ?? '');
+      input.value = stringifyCustomValue(currentVal);
       input.addEventListener('change', () => { task.customFields[cf.id] = parseFloat(input.value); });
       break;
     }
     case 'date': {
       const input = wrap.createEl('input', { type: 'date', cls: 'pm-prop-date' });
-      input.value = String(currentVal ?? '');
+      input.value = stringifyCustomValue(currentVal);
       input.addEventListener('change', () => { task.customFields[cf.id] = input.value; });
       break;
     }
@@ -81,7 +82,7 @@ export function renderCustomFieldInput(
     }
     case 'person': {
       const input = wrap.createEl('input', { type: 'text', cls: 'pm-prop-text' });
-      input.value = String(currentVal ?? '');
+      input.value = stringifyCustomValue(currentVal);
       input.placeholder = 'Person name';
       const all = [...new Set([...project.teamMembers, ...plugin.settings.globalTeamMembers])];
       input.setAttribute('list', `pm-persons-${cf.id}`);
