@@ -23,7 +23,7 @@ export class TaskModal extends Modal {
     private project: Project,
     task: Task | null,
     private parentId: string | null,
-    private onSave: (task: Task) => Promise<void>,
+    private onSave: (task: Task) => void | Promise<void>,
     defaults?: Partial<Task>,
   ) {
     super(app);

@@ -28,7 +28,7 @@ export class ProjectModal extends Modal {
     app: App,
     private plugin: PMPlugin,
     existingProject: Project | null,
-    private onSave: (project: Project) => Promise<void>,
+    private onSave: (project: Project) => void | Promise<void>,
   ) {
     super(app);
     if (existingProject) {

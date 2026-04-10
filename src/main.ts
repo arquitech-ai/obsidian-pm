@@ -55,7 +55,7 @@ export default class PMPlugin extends Plugin {
     this.addCommand({
       id: 'new-project',
       name: 'Create new project',
-      callback: async () => {
+      callback: () => {
         openProjectModal(this, { onSave: async project => {
           await this.openProjectFile(
             this.app.vault.getAbstractFileByPath(project.filePath) as TFile,
@@ -140,7 +140,7 @@ export default class PMPlugin extends Plugin {
       this.showNotice('No projects yet. Create a project first.');
       return;
     }
-    openProjectPicker(this, projects, async (project) => {
+    openProjectPicker(this, projects, (project) => {
       if (mode === 'pick-parent') {
         // Pick a parent task
         const flat = flattenTasks(project.tasks);
@@ -148,7 +148,7 @@ export default class PMPlugin extends Plugin {
           this.showNotice('No tasks in this project. Create a task first.');
           return;
         }
-        openTaskPicker(this, flat.map(f => f.task), async (parentTask) => {
+        openTaskPicker(this, flat.map(f => f.task), (parentTask) => {
           this.openTaskModalForProject(project, parentTask.id);
         });
       } else {

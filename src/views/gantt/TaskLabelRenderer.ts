@@ -76,8 +76,8 @@ export function renderTaskLabel(
 
   // Title
   const titleEl = el.createEl('span', { text: task.title, cls: 'pm-gantt-label-title' });
-  titleEl.addEventListener('click', async () => {
-    openTaskModal(ctx.plugin, ctx.project, { task, onSave: async () => { await ctx.onRefresh(); } });
+  titleEl.addEventListener('click', () => {
+    openTaskModal(ctx.plugin, ctx.project, { task, onSave: () => ctx.onRefresh() });
   });
 
   // Progress %
@@ -88,8 +88,8 @@ export function renderTaskLabel(
   // "+" button to add subtask (hover-visible)
   const addSubBtn = el.createEl('button', { text: '+', cls: 'pm-gantt-label-add-btn' });
   addSubBtn.title = 'Add subtask';
-  addSubBtn.addEventListener('click', async (e) => {
+  addSubBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    openTaskModal(ctx.plugin, ctx.project, { parentId: task.id, onSave: async () => { await ctx.onRefresh(); } });
+    openTaskModal(ctx.plugin, ctx.project, { parentId: task.id, onSave: () => ctx.onRefresh() });
   });
 }

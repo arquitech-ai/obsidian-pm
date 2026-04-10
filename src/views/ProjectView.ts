@@ -168,7 +168,7 @@ export class ProjectView extends ItemView {
     const left = this.toolbarEl.createDiv('pm-toolbar-left');
     const iconEl = left.createEl('span', { text: this.project.icon, cls: 'pm-toolbar-icon', attr: { 'aria-label': 'Edit project', role: 'button', tabindex: '0' } });
     iconEl.addEventListener('click', () => {
-      openProjectModal(this.plugin, { project: this.project, onSave: async updated => {
+      openProjectModal(this.plugin, { project: this.project, onSave: updated => {
         this.project = updated;
         this.renderProjectToolbar();
       } });
@@ -221,7 +221,7 @@ export class ProjectView extends ItemView {
     const settingsBtn = right.createEl('button', { cls: 'pm-btn pm-btn-icon', attr: { 'aria-label': 'Project settings' } });
     settingsBtn.createEl('span', { text: '⚙' });
     settingsBtn.addEventListener('click', () => {
-      openProjectModal(this.plugin, { project: this.project, onSave: async updated => {
+      openProjectModal(this.plugin, { project: this.project, onSave: updated => {
         this.project = updated;
         this.renderProjectToolbar();
         this.renderCurrentView();

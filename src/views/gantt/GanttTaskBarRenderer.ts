@@ -115,9 +115,9 @@ export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: n
 
   // Click to open modal (suppressed if drag occurred)
   rect.setAttribute('cursor', 'pointer');
-  rect.addEventListener('click', async () => {
+  rect.addEventListener('click', () => {
     if (ctx.drag.dragMoved) { ctx.drag.dragMoved = false; return; }
-    openTaskModal(ctx.plugin, ctx.project, { task, onSave: async () => { await ctx.onRefresh(); } });
+    openTaskModal(ctx.plugin, ctx.project, { task, onSave: () => ctx.onRefresh() });
   });
 }
 
@@ -142,8 +142,8 @@ function renderMilestoneDiamond(g: SVGGElement, task: Task, row: number, color: 
   tt.textContent = `${task.title} (milestone)\nDate: ${task.due || task.start || '\u2014'}`;
   diamond.appendChild(tt);
 
-  diamond.addEventListener('click', async () => {
-    openTaskModal(ctx.plugin, ctx.project, { task, onSave: async () => { await ctx.onRefresh(); } });
+  diamond.addEventListener('click', () => {
+    openTaskModal(ctx.plugin, ctx.project, { task, onSave: () => ctx.onRefresh() });
   });
 }
 

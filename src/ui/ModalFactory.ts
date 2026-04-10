@@ -137,7 +137,7 @@ export interface OpenTaskModalOpts {
   task?: Task | null;
   parentId?: string | null;
   defaults?: Partial<Task>;
-  onSave: (task: Task) => Promise<void>;
+  onSave: (task: Task) => void | Promise<void>;
 }
 
 export function openTaskModal(
@@ -158,7 +158,7 @@ export function openTaskModal(
 
 export interface OpenProjectModalOpts {
   project?: Project | null;
-  onSave: (project: Project) => Promise<void>;
+  onSave: (project: Project) => void | Promise<void>;
 }
 
 export function openProjectModal(

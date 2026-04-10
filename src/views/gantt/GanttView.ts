@@ -164,8 +164,8 @@ export class GanttView implements SubView {
     const addRow = leftBody.createDiv('pm-gantt-label-row pm-gantt-add-row');
     addRow.style.height = `${ROW_HEIGHT}px`;
     const addBtn = addRow.createEl('button', { text: '+ Add Task', cls: 'pm-gantt-add-task-btn' });
-    addBtn.addEventListener('click', async () => {
-      openTaskModal(this.plugin, this.project, { onSave: async () => { await this.onRefresh(); } });
+    addBtn.addEventListener('click', () => {
+      openTaskModal(this.plugin, this.project, { onSave: () => this.onRefresh() });
     });
 
     // Spacer compensates for horizontal scrollbar in the right panel.
