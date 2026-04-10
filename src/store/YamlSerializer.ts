@@ -1,3 +1,4 @@
+import { parseYaml } from 'obsidian';
 import type { Project, Task, SavedView, CustomFieldDef } from '../types';
 import { makeTask } from '../types';
 import { sanitizeFileName } from '../utils';
@@ -20,8 +21,6 @@ export function parseFrontmatter(content: string): {
   const raw = content.slice(4, end);
   const body = content.slice(end + 4).trim();
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { parseYaml } = require('obsidian');
     return { frontmatter: parseYaml(raw) as Record<string, unknown>, body };
   } catch {
     return { frontmatter: null, body: content };
