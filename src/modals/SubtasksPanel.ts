@@ -51,7 +51,13 @@ export function renderSubtasksPanel(container: HTMLElement, task: Task, plugin: 
     setTimeout(() => {
       const rows = subList.querySelectorAll('.pm-subtask-title');
       const last = rows[rows.length - 1] as HTMLElement;
-      if (last) { last.focus(); document.execCommand('selectAll'); }
+      if (last) {
+          last.focus();
+          const range = document.createRange();
+          range.selectNodeContents(last);
+          const sel = window.getSelection();
+          if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+        }
     }, 50);
   });
 }
