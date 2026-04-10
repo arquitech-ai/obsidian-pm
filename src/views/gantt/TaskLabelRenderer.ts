@@ -3,7 +3,7 @@ import type { Project, Task } from '../../types';
 import { moveTaskInTree } from '../../store/TaskTreeOps';
 import { openTaskModal } from '../../ui/ModalFactory';
 import { COLOR_MUTED } from '../../constants';
-import { getStatusConfig } from '../../utils';
+import { getStatusConfig, safeAsync } from '../../utils';
 import { ROW_HEIGHT } from './TimelineConfig';
 
 export interface LabelContext {
@@ -45,7 +45,7 @@ export function renderTaskLabel(
   el.addEventListener('dragleave', () => {
     el.removeClass('pm-gantt-label-row--drop-before', 'pm-gantt-label-row--drop-after');
   });
-  el.addEventListener('drop', async (e: DragEvent) => {
+  el.addEventListener('drop', safeAsync(async (e: DragEvent) => {
     e.preventDefault();
     el.removeClass('pm-gantt-label-row--drop-before', 'pm-gantt-label-row--drop-after');
     const draggedId = e.dataTransfer?.getData('text/plain');
@@ -53,7 +53,7 @@ export function renderTaskLabel(
     moveTaskInTree(ctx.project.tasks, draggedId, task.id, dropPosition);
     await ctx.plugin.store.saveProject(ctx.project);
     await ctx.onRefresh();
-  });
+  }));
 
   // Expand button
   if (task.subtasks.length > 0) {
@@ -61,10 +61,10 @@ export function renderTaskLabel(
       text: task.collapsed ? '▶' : '▼',
       cls: 'pm-gantt-expand-btn',
     });
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', safeAsync(async () => {
       await ctx.plugin.store.updateTask(ctx.project, task.id, { collapsed: !task.collapsed });
       await ctx.onRefresh();
-    });
+    }));
   } else {
     el.createEl('span', { cls: 'pm-gantt-label-spacer' });
   }

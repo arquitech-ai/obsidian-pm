@@ -67,10 +67,10 @@ export class GanttView implements SubView {
     for (const level of levels) {
       const btn = bar.createEl('button', { text: labels[level], cls: 'pm-gantt-zoom-btn' });
       if (level === this.granularity) btn.addClass('pm-gantt-zoom-btn--active');
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', () => {
         this.granularity = level;
         this.plugin.settings.ganttGranularity = level;
-        await this.plugin.saveSettings();
+        void this.plugin.saveSettings();
         this.render();
       });
     }

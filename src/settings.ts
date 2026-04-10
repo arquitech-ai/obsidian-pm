@@ -125,15 +125,15 @@ export class PMSettingTab extends PluginSettingTab {
       const row = container.createDiv('pm-settings-member-row');
       const input = row.createEl('input', { type: 'text', value: m });
       input.placeholder = 'Name';
-      input.addEventListener('change', async () => {
+      input.addEventListener('change', () => {
         this.plugin.settings.globalTeamMembers[i] = input.value;
-        await this.plugin.saveSettings();
+        void this.plugin.saveSettings();
       });
       const del = row.createEl('button', { text: '✕' });
       del.addClass('pm-settings-del');
-      del.addEventListener('click', async () => {
+      del.addEventListener('click', () => {
         this.plugin.settings.globalTeamMembers.splice(i, 1);
-        await this.plugin.saveSettings();
+        void this.plugin.saveSettings();
         this.renderMembersList(container);
       });
     });
@@ -145,21 +145,21 @@ export class PMSettingTab extends PluginSettingTab {
       const row = container.createDiv('pm-settings-status-row');
 
       const icon = row.createEl('input', { type: 'text', value: s.icon });
-      icon.addEventListener('change', async () => {
+      icon.addEventListener('change', () => {
         this.plugin.settings.statuses[i].icon = icon.value;
-        await this.plugin.saveSettings();
+        void this.plugin.saveSettings();
       });
 
       const label = row.createEl('input', { type: 'text', value: s.label });
-      label.addEventListener('change', async () => {
+      label.addEventListener('change', () => {
         this.plugin.settings.statuses[i].label = label.value;
-        await this.plugin.saveSettings();
+        void this.plugin.saveSettings();
       });
 
       const color = row.createEl('input', { type: 'color', value: s.color });
-      color.addEventListener('change', async () => {
+      color.addEventListener('change', () => {
         this.plugin.settings.statuses[i].color = color.value;
-        await this.plugin.saveSettings();
+        void this.plugin.saveSettings();
       });
     });
   }

@@ -1,7 +1,7 @@
 import { App, Modal } from 'obsidian';
 import type PMPlugin from '../main';
 import { Project, CustomFieldDef, makeId, makeProject } from '../types';
-import { stringToColor } from '../utils';
+import { stringToColor, safeAsync } from '../utils';
 import { COLOR_DANGER } from '../constants';
 
 const PROJECT_COLORS = [
@@ -193,7 +193,7 @@ export class ProjectModal extends Modal {
       text: this.isNew ? '+ Create project' : 'Save',
       cls: 'pm-btn pm-btn-primary',
     });
-    saveBtn.addEventListener('click', async () => {
+    saveBtn.addEventListener('click', safeAsync(async () => {
       const title = titleInput.value.trim();
       if (!title) {
         titleInput.addClass('pm-input-error');
@@ -210,7 +210,7 @@ export class ProjectModal extends Modal {
       await this.plugin.store.saveProject(this.project);
       await this.onSave(this.project);
       this.close();
-    });
+    }));
   }
 
   private renderCustomFieldEditor(container: HTMLElement, cf: CustomFieldDef, index: number, rerender: () => void): void {
