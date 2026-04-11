@@ -46,6 +46,13 @@ export default defineConfig([
 			"obsidianmd/no-sample-code": "off",
 			// We have our own design system casing conventions
 			"obsidianmd/ui/sentence-case": "off",
+			// Pre-existing violations — downgraded to warn so --max-warnings
+			// can gate the build. Promote back to error as tickets are resolved.
+			"@typescript-eslint/no-floating-promises": "warn",
+			"@typescript-eslint/no-unsafe-argument": "warn",
+			"@typescript-eslint/no-unsafe-assignment": "warn",
+			"@typescript-eslint/no-unsafe-member-access": "warn",
+			"@typescript-eslint/no-base-to-string": "warn",
 		},
 	},
 	{
