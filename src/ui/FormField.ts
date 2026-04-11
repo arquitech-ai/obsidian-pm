@@ -43,7 +43,7 @@ export function renderChipList(
     opts.renderAdd(container);
   } else if (opts.onAdd) {
     const addBtn = container.createEl('button', { text: opts.addLabel ?? '+ Add', cls: 'pm-prop-add-btn' });
-    addBtn.addEventListener('click', (e) => opts.onAdd!(e as MouseEvent));
+    addBtn.addEventListener('click', (e) => opts.onAdd!(e));
   }
 }
 

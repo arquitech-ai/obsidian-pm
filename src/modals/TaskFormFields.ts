@@ -39,7 +39,7 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
           .setChecked(s.id === task.status)
           .onClick(() => { task.status = s.id; rerender(); }));
       }
-      menu.showAtMouseEvent(e as MouseEvent);
+      menu.showAtMouseEvent(e);
     });
     return val;
   });
@@ -58,7 +58,7 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
           .setChecked(p.id === task.priority)
           .onClick(() => { task.priority = p.id; rerender(); }));
       }
-      menu.showAtMouseEvent(e as MouseEvent);
+      menu.showAtMouseEvent(e);
     });
     return val;
   });
@@ -199,7 +199,7 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
               }
               menu.addSeparator();
               menu.addItem(item => item.setTitle('Type a name\u2026').onClick(() => showNameInput()));
-              menu.showAtMouseEvent(ev as MouseEvent);
+              menu.showAtMouseEvent(ev);
             } else {
               showNameInput();
             }

@@ -74,7 +74,7 @@ export function renderCustomFieldInput(
               }));
             }
           }
-          menu.showAtMouseEvent(e as MouseEvent);
+          menu.showAtMouseEvent(e);
         });
       };
       renderMulti();

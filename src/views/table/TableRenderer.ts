@@ -148,8 +148,8 @@ function updateSelectCheckboxes(state: TableState): void {
   const rows = state.tableBody.querySelectorAll('tr[data-task-id]');
   for (const row of Array.from(rows)) {
     const id = (row as HTMLElement).dataset.taskId!;
-    const cb = row.querySelector('.pm-select-checkbox') as HTMLInputElement | null;
-    if (cb) cb.checked = state.selectedTaskIds.has(id);
+    const cb = row.querySelector('.pm-select-checkbox');
+    if (cb) (cb as HTMLInputElement).checked = state.selectedTaskIds.has(id);
   }
   updateSelectAllCheckbox(state);
 }

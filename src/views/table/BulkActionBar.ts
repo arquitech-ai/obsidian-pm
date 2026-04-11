@@ -28,7 +28,7 @@ export interface BulkActionBarOpts {
  */
 export function renderBulkActionBar(opts: BulkActionBarOpts): void {
   const { ctx, onAction } = opts;
-  const existing = ctx.container.querySelector('.pm-bulk-bar') as HTMLElement | null;
+  const existing = ctx.container.querySelector('.pm-bulk-bar');
 
   if (ctx.state.selectedTaskIds.size === 0) {
     existing?.remove();
@@ -37,7 +37,7 @@ export function renderBulkActionBar(opts: BulkActionBarOpts): void {
 
   // Reuse existing bar or create a new one
   const bar = existing ?? createBar(ctx.container);
-  updateBarContent(bar, ctx, onAction);
+  updateBarContent(bar as HTMLElement, ctx, onAction);
 }
 
 function createBar(container: HTMLElement): HTMLElement {
@@ -71,7 +71,7 @@ function updateBarContent(bar: HTMLElement, ctx: TableContext, onAction: (a: Bul
         .setTitle(formatBadgeText(s.icon, s.label))
         .onClick(() => onAction({ type: 'set-status', status: s.id })));
     }
-    menu.showAtMouseEvent(e as MouseEvent);
+    menu.showAtMouseEvent(e);
   });
 
   // Priority button
@@ -83,7 +83,7 @@ function updateBarContent(bar: HTMLElement, ctx: TableContext, onAction: (a: Bul
         .setTitle(formatBadgeText(p.icon, p.label))
         .onClick(() => onAction({ type: 'set-priority', priority: p.id })));
     }
-    menu.showAtMouseEvent(e as MouseEvent);
+    menu.showAtMouseEvent(e);
   });
 
   // Assignee button
@@ -101,7 +101,7 @@ function updateBarContent(bar: HTMLElement, ctx: TableContext, onAction: (a: Bul
     }));
     menu.addSeparator();
     menu.addItem(item => item.setTitle('Clear assignees').onClick(() => onAction({ type: 'set-assignee', assignee: '' })));
-    menu.showAtMouseEvent(e as MouseEvent);
+    menu.showAtMouseEvent(e);
   });
 
   // Tag button
@@ -119,7 +119,7 @@ function updateBarContent(bar: HTMLElement, ctx: TableContext, onAction: (a: Bul
     }));
     menu.addSeparator();
     menu.addItem(item => item.setTitle('Clear tags').onClick(() => onAction({ type: 'set-tag', tag: '' })));
-    menu.showAtMouseEvent(e as MouseEvent);
+    menu.showAtMouseEvent(e);
   });
 
   // Due Date button
@@ -148,7 +148,7 @@ function updateBarContent(bar: HTMLElement, ctx: TableContext, onAction: (a: Bul
     }));
     menu.addSeparator();
     menu.addItem(item => item.setTitle('Clear due date').onClick(() => onAction({ type: 'set-due-date', due: '' })));
-    menu.showAtMouseEvent(e as MouseEvent);
+    menu.showAtMouseEvent(e);
   });
 
   // Progress button
@@ -158,7 +158,7 @@ function updateBarContent(bar: HTMLElement, ctx: TableContext, onAction: (a: Bul
     for (const pct of [0, 25, 50, 75, 100]) {
       menu.addItem(item => item.setTitle(`${pct}%`).onClick(() => onAction({ type: 'set-progress', progress: pct })));
     }
-    menu.showAtMouseEvent(e as MouseEvent);
+    menu.showAtMouseEvent(e);
   });
 
   // Archive / Unarchive button — show based on selected tasks' state
@@ -190,8 +190,8 @@ function updateBarContent(bar: HTMLElement, ctx: TableContext, onAction: (a: Bul
     ctx.state.selectedTaskIds.clear();
     // Update row checkboxes
     if (ctx.state.tableBody) {
-      const cbs = ctx.state.tableBody.querySelectorAll('.pm-select-checkbox') as NodeListOf<HTMLInputElement>;
-      cbs.forEach(cb => cb.checked = false);
+      const cbs = ctx.state.tableBody.querySelectorAll('.pm-select-checkbox');
+      cbs.forEach(cb => (cb as HTMLInputElement).checked = false);
     }
     updateSelectAllCheckbox(ctx.state);
     renderBulkActionBar({ ctx, onAction });

@@ -110,7 +110,7 @@ function renderDueDateFilter(parent: HTMLElement, ctx: FilterBarContext): void {
           ctx.rerender();
         }));
     }
-    menu.showAtMouseEvent(e as MouseEvent);
+    menu.showAtMouseEvent(e);
   });
 }
 

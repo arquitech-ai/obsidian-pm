@@ -39,7 +39,7 @@ export function renderFilterDropdown(
         onChange(selected);
       }));
     }
-    menu.showAtMouseEvent(e as MouseEvent);
+    menu.showAtMouseEvent(e);
   });
 
   return btn;

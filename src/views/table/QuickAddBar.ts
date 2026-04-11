@@ -42,6 +42,6 @@ export function renderQuickAddBar(
 }
 
 export function focusQuickAdd(container: HTMLElement): void {
-  const input = container.querySelector('.pm-quick-add-input') as HTMLInputElement | null;
-  if (input) { input.focus(); input.select(); }
+  const input = container.querySelector('.pm-quick-add-input');
+  if (input) { (input as HTMLInputElement).focus(); (input as HTMLInputElement).select(); }
 }

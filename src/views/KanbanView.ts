@@ -222,7 +222,7 @@ export class KanbanView implements SubView {
           await this.onRefresh();
         }
       })));
-      menu.showAtMouseEvent(e as MouseEvent);
+      menu.showAtMouseEvent(e);
     });
   }
 

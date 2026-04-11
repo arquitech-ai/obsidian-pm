@@ -26,7 +26,7 @@ export function renderStatusBadge(
         .setChecked(s.id === task.status)
         .onClick(() => onChange(s.id)));
     }
-    menu.showAtMouseEvent(e as MouseEvent);
+    menu.showAtMouseEvent(e);
   });
   return badge;
 }
@@ -54,7 +54,7 @@ export function renderPriorityBadge(
         .setChecked(p.id === task.priority)
         .onClick(() => onChange(p.id)));
     }
-    menu.showAtMouseEvent(e as MouseEvent);
+    menu.showAtMouseEvent(e);
   });
   return badge;
 }

@@ -63,7 +63,7 @@ export function renderSavedViewsBar(container: HTMLElement, ctx: SavedViewsConte
         await ctx.plugin.store.saveProject(ctx.project);
         ctx.rerender();
       })));
-      menu.showAtMouseEvent(e as MouseEvent);
+      menu.showAtMouseEvent(e);
     });
   }
 

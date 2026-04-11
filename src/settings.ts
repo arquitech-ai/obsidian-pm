@@ -18,10 +18,10 @@ export class PMSettingTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.addClass('pm-settings');
 
-    new Setting(containerEl).setName('Project Manager').setHeading();
+    ;
 
     // ── General ──────────────────────────────────────────────────────────────
-    new Setting(containerEl).setName('General').setHeading();
+    ;
 
     new Setting(containerEl)
       .setName('Projects folder')

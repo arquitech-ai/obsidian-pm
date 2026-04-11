@@ -261,7 +261,7 @@ function renderActionsCell(row: HTMLElement, task: Task, ctx: TableContext): voi
       await ctx.plugin.store.deleteTask(ctx.project, task.id);
       await ctx.onRefresh();
     })));
-    menu.showAtMouseEvent(e as MouseEvent);
+    menu.showAtMouseEvent(e);
   });
 }
 
@@ -313,7 +313,7 @@ export function updateSelectAllCheckbox(state: TableState): void {
   if (!state.tableBody) return;
   const wrapper = state.tableBody.closest('.pm-table-wrapper');
   if (!wrapper) return;
-  const selectAllCb = wrapper.querySelector('.pm-select-all-checkbox') as HTMLInputElement | null;
+  const selectAllCb = wrapper.querySelector<HTMLInputElement>('.pm-select-all-checkbox');
   if (!selectAllCb) return;
   const ids = Array.from(state.tableBody.querySelectorAll('tr[data-task-id]')).map(r => (r as HTMLElement).dataset.taskId!);
   if (ids.length === 0) {
