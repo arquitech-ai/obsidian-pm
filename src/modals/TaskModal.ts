@@ -93,8 +93,16 @@ export class TaskModal extends Modal {
     descArea.placeholder = 'Add a description\u2026';
     descArea.value = this.task.description;
     const autoResize = () => {
-      descArea.setCssStyles({ height: 'auto' });
-      descArea.setCssStyles({ height: descArea.scrollHeight + 'px' });
+      // Save scroll positions of ALL scrollable ancestors to prevent jump
+      const saved: [HTMLElement, number][] = [];
+      let ancestor = descArea.parentElement;
+      while (ancestor) {
+        if (ancestor.scrollTop > 0) saved.push([ancestor, ancestor.scrollTop]);
+        ancestor = ancestor.parentElement;
+      }
+      descArea.style.height = 'auto';
+      descArea.style.height = descArea.scrollHeight + 'px';
+      for (const [el, top] of saved) el.scrollTop = top;
     };
     descArea.addEventListener('input', () => {
       this.task.description = descArea.value;
