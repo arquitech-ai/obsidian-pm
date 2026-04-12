@@ -1,4 +1,4 @@
-import { App, Modal, Notice } from 'obsidian';
+import { App, Component, Modal, MarkdownRenderer, Notice } from 'obsidian';
 import type PMPlugin from '../main';
 import { Project, Task, makeTask } from '../types';
 import { flattenTasks } from '../store/TaskTreeOps';
@@ -86,14 +86,16 @@ export class TaskModal extends Modal {
     titleInput.focus();
     titleInput.select();
 
-    // ── Description ─────────────────────────────────────────────────────────
+    // ── Description (preview / edit) ─────────────────────────────────────────
     const descSection = contentEl.createDiv('pm-modal-section pm-modal-desc-section');
     descSection.createEl('h4', { text: 'Description', cls: 'pm-modal-section-title' });
+
+    const descPreview = descSection.createDiv('pm-modal-desc-preview');
     const descArea = descSection.createEl('textarea', { cls: 'pm-modal-description' });
     descArea.placeholder = 'Add a description\u2026';
     descArea.value = this.task.description;
+
     const autoResize = () => {
-      // Save scroll positions of ALL scrollable ancestors to prevent jump
       const saved: [HTMLElement, number][] = [];
       let ancestor = descArea.parentElement;
       while (ancestor) {
@@ -104,11 +106,61 @@ export class TaskModal extends Modal {
       descArea.setCssProps({ '--desc-height': descArea.scrollHeight + 'px' });
       for (const [el, top] of saved) el.scrollTop = top;
     };
+
+    const hasContent = () => this.task.description.trim().length > 0;
+    const sourcePath = this.task.filePath || this.project.filePath || '';
+
+    let descComp = new Component();
+    descComp.load();
+    const renderPreview = () => {
+      descComp.unload();
+      descComp = new Component();
+      descComp.load();
+      descPreview.empty();
+      void MarkdownRenderer.render(this.app, this.task.description, descPreview, sourcePath, descComp);
+    };
+
+    const showEdit = () => {
+      descPreview.classList.add('pm-hidden');
+      descArea.classList.remove('pm-hidden');
+      descArea.value = this.task.description;
+      setTimeout(() => { autoResize(); descArea.focus(); }, 0);
+    };
+
+    const showPreview = () => {
+      if (!hasContent()) return;
+      renderPreview();
+      descArea.classList.add('pm-hidden');
+      descPreview.classList.remove('pm-hidden');
+    };
+
     descArea.addEventListener('input', () => {
       this.task.description = descArea.value;
       autoResize();
     });
-    setTimeout(autoResize, 0);
+    descArea.addEventListener('blur', () => showPreview());
+
+    descPreview.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest('a.internal-link');
+      if (link) {
+        e.preventDefault();
+        e.stopPropagation();
+        const href = link.getAttribute('data-href') || link.getAttribute('href') || '';
+        void this.app.workspace.openLinkText(href, sourcePath);
+        return;
+      }
+      if (target.closest('a')) return;
+      showEdit();
+    });
+
+    if (hasContent()) {
+      descArea.classList.add('pm-hidden');
+      renderPreview();
+    } else {
+      descPreview.classList.add('pm-hidden');
+      setTimeout(autoResize, 0);
+    }
 
     // ── Properties (collapsible) ────────────────────────────────────────────
     const propsContainer = contentEl.createDiv('pm-modal-props-container');

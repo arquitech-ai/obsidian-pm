@@ -1718,18 +1718,32 @@
   border-top: none;
 }
 .pm-modal-desc-preview {
-  margin-top: 8px;
   padding: 8px 10px;
   background: var(--pm-bg2);
   border-radius: var(--pm-radius-sm);
   border: 1px solid var(--pm-border);
   font-size: 13px;
-  min-height: 20px;
-  max-height: 200px;
+  line-height: 1.6;
+  min-height: 40px;
+  max-height: 300px;
   overflow-y: auto;
+  cursor: text;
+  transition: border-color 0.15s;
 }
-.pm-modal-desc-preview:empty { display: none; }
-.pm-modal-desc-preview a { color: var(--pm-accent); text-decoration: underline; }
+.pm-modal-desc-preview:hover {
+  border-color: var(--pm-accent);
+}
+.pm-modal-desc-preview p {
+  margin: 0 0 0.5em;
+}
+.pm-modal-desc-preview p:last-child {
+  margin-bottom: 0;
+}
+.pm-modal-desc-preview a {
+  color: var(--pm-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 /* ── Gantt add task button ───────────────────────────────────────────── */
 .pm-gantt-add-task-btn {
