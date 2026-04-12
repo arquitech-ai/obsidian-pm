@@ -38,6 +38,7 @@ export class TableView implements SubView {
       filter: initialState?.filter ?? makeDefaultFilter(),
       selectedTaskId: null,
       selectedTaskIds: new Set(),
+      lastCheckedTaskId: null,
       tableBody: null,
     };
     this.activeSavedViewId = initialState?.activeSavedViewId ?? null;

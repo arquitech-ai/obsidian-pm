@@ -5,6 +5,7 @@ import { stringToColor, formatDateLong, todayMidnight, isTaskOverdue, getStatusC
 import { COLOR_ACCENT } from '../../constants';
 import { renderStatusBadge, renderPriorityBadge } from '../../ui/StatusBadge';
 import { openTaskModal } from '../../ui/ModalFactory';
+import { updateSelectCheckboxes, getVisibleTaskIds } from './TableRenderer';
 import type { TableContext, TableState } from './TableRenderer';
 
 // ─── Inline edit helper ────────────────────────────────────────────────────────
@@ -53,17 +54,37 @@ function renderSelectCell(row: HTMLElement, task: Task, ctx: TableContext): void
   const cell = row.createEl('td', { cls: 'pm-table-cell-select' });
   const cb = cell.createEl('input', { type: 'checkbox', cls: 'pm-select-checkbox' });
   cb.checked = ctx.state.selectedTaskIds.has(task.id);
-  cb.addEventListener('change', (e) => {
+  cb.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (cb.checked) {
-      ctx.state.selectedTaskIds.add(task.id);
+    const checked = cb.checked;
+
+    if (e.shiftKey && ctx.state.lastCheckedTaskId) {
+      const ids = getVisibleTaskIds(ctx.state);
+      const curIdx = ids.indexOf(task.id);
+      const lastIdx = ids.indexOf(ctx.state.lastCheckedTaskId);
+      if (curIdx !== -1 && lastIdx !== -1) {
+        const [from, to] = curIdx < lastIdx ? [curIdx, lastIdx] : [lastIdx, curIdx];
+        for (let i = from; i <= to; i++) {
+          if (checked) {
+            ctx.state.selectedTaskIds.add(ids[i]);
+          } else {
+            ctx.state.selectedTaskIds.delete(ids[i]);
+          }
+        }
+        updateSelectCheckboxes(ctx.state);
+      }
     } else {
-      ctx.state.selectedTaskIds.delete(task.id);
+      if (checked) {
+        ctx.state.selectedTaskIds.add(task.id);
+      } else {
+        ctx.state.selectedTaskIds.delete(task.id);
+      }
     }
+
+    ctx.state.lastCheckedTaskId = task.id;
     updateSelectAllCheckbox(ctx.state);
     ctx.onSelectionChange();
   });
-  cb.addEventListener('click', (e) => e.stopPropagation());
 }
 
 function renderExpandCell(row: HTMLElement, task: Task, ctx: TableContext): void {

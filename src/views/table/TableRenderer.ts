@@ -17,6 +17,7 @@ export interface TableState {
   filter: FilterState;
   selectedTaskId: string | null;
   selectedTaskIds: Set<string>;
+  lastCheckedTaskId: string | null;
   tableBody: HTMLElement | null;
 }
 
@@ -143,7 +144,7 @@ function fillTableBody(ctx: TableContext): void {
   });
 }
 
-function updateSelectCheckboxes(state: TableState): void {
+export function updateSelectCheckboxes(state: TableState): void {
   if (!state.tableBody) return;
   const rows = state.tableBody.querySelectorAll('tr[data-task-id]');
   for (const row of Array.from(rows)) {
@@ -235,7 +236,7 @@ export function handleTableKeyDown(e: KeyboardEvent, ctx: TableContext): void {
   }
 }
 
-function getVisibleTaskIds(state: TableState): string[] {
+export function getVisibleTaskIds(state: TableState): string[] {
   if (!state.tableBody) return [];
   const rows = state.tableBody.querySelectorAll('tr[data-task-id]');
   return Array.from(rows).map(r => (r as HTMLElement).dataset.taskId!);
