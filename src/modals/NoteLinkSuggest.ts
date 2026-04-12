@@ -1,8 +1,14 @@
 import { App, prepareFuzzySearch, TFile } from 'obsidian';
 
+/** File-type metadata for suggest dropdown. */
+const FILE_TYPE_LABELS: Record<string, string> = {
+  canvas: 'Canvas',
+  base: 'Database',
+};
+
 /**
  * Inline note-link suggest dropdown for textareas.
- * Triggers on `[[` and shows matching vault markdown files.
+ * Triggers on `[[` and shows matching vault files (notes, canvases, databases).
  */
 export class NoteLinkSuggest {
   private container: HTMLDivElement;
@@ -107,7 +113,9 @@ export class NoteLinkSuggest {
   // ── Core logic ──────────────────────────────────────────────────────────
 
   private updateItems(): void {
-    const files = this.app.vault.getMarkdownFiles();
+    const files = this.app.vault.getFiles().filter(
+      f => /\.(md|canvas|base)$/.test(f.extension ? `.${f.extension}` : f.path),
+    );
     if (!this.query) {
       // Show recently modified files when no query
       this.items = files
@@ -139,7 +147,8 @@ export class NoteLinkSuggest {
     if (!file) return;
     const before = this.textarea.value.slice(0, this.triggerStart);
     const after = this.textarea.value.slice(this.textarea.selectionStart);
-    const insertion = `[[${file.basename}]]`;
+    const linkName = file.extension === 'md' ? file.basename : `${file.basename}.${file.extension}`;
+    const insertion = `[[${linkName}]]`;
     const newValue = before + insertion + after;
     this.textarea.value = newValue;
     const cursorPos = before.length + insertion.length;
@@ -223,7 +232,12 @@ export class NoteLinkSuggest {
       const row = this.container.createDiv({
         cls: 'pm-note-suggest-item' + (i === this.activeIndex ? ' pm-note-suggest-item--active' : ''),
       });
-      row.createDiv({ cls: 'pm-note-suggest-name', text: file.basename });
+      const nameRow = row.createDiv({ cls: 'pm-note-suggest-name-row' });
+      nameRow.createSpan({ cls: 'pm-note-suggest-name', text: file.basename });
+      const typeLabel = FILE_TYPE_LABELS[file.extension];
+      if (typeLabel) {
+        nameRow.createSpan({ cls: 'pm-note-suggest-type', text: typeLabel });
+      }
       if (file.parent && file.parent.path !== '/') {
         row.createDiv({ cls: 'pm-note-suggest-path', text: file.parent.path });
       }

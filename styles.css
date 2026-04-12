@@ -1784,6 +1784,12 @@
 .pm-note-suggest-item--active {
   background: var(--pm-accent-light);
 }
+.pm-note-suggest-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
 .pm-note-suggest-name {
   font-size: 13px;
   font-weight: 500;
@@ -1791,6 +1797,17 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.pm-note-suggest-type {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--pm-text-faint);
+  background: var(--pm-bg3);
+  padding: 1px 5px;
+  border-radius: var(--pm-radius-sm);
 }
 .pm-note-suggest-path {
   font-size: 11px;

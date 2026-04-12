@@ -162,6 +162,9 @@ export class TaskModal extends Modal {
         e.preventDefault();
         e.stopPropagation();
         const href = link.getAttribute('data-href') || link.getAttribute('href') || '';
+        this.saved = false;
+        this.cancelled = false;
+        this.close();
         void this.app.workspace.openLinkText(href, sourcePath);
         return;
       }
