@@ -19,11 +19,8 @@ export class NoteLinkSuggest {
     private onInsert: (newValue: string) => void,
   ) {
     this.container = createDiv('pm-note-suggest');
-    this.container.style.display = 'none';
 
     this.mirror = createDiv('pm-note-suggest-mirror');
-    this.mirror.style.cssText =
-      'position:fixed;top:-9999px;left:-9999px;visibility:hidden;white-space:pre-wrap;word-wrap:break-word;overflow:hidden;';
 
     document.body.appendChild(this.mirror);
 
@@ -154,7 +151,7 @@ export class NoteLinkSuggest {
 
   private show(): void {
     this.open = true;
-    this.container.style.display = '';
+    this.container.addClass('pm-note-suggest--visible');
     this.position();
     this.renderItems();
   }
@@ -162,7 +159,7 @@ export class NoteLinkSuggest {
   private hide(): void {
     if (!this.open) return;
     this.open = false;
-    this.container.style.display = 'none';
+    this.container.removeClass('pm-note-suggest--visible');
     this.triggerStart = -1;
   }
 
