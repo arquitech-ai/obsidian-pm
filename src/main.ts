@@ -4,7 +4,7 @@ import { flattenTasks } from './store/TaskTreeOps';
 import { ProjectStore } from './store';
 import { PMSettingTab } from './settings';
 import { ProjectView, PM_VIEW_TYPE } from './views/ProjectView';
-import { openProjectModal, openTaskModal, openProjectPicker, openTaskPicker } from './ui/ModalFactory';
+import { openProjectModal, openTaskModal, openProjectPicker, openTaskPicker, openImportModal } from './ui/ModalFactory';
 import { Notifier } from './components/Notifier';
 import { migrateProjects } from './migration';
 import { safeAsync } from './utils';
@@ -73,6 +73,12 @@ export default class PMPlugin extends Plugin {
       id: 'new-subtask',
       name: 'Create new subtask',
       callback: () => { void this.pickProjectThenCreateTask('pick-parent'); },
+    });
+
+    this.addCommand({
+      id: 'import-notes-as-tasks',
+      name: 'Import notes as tasks',
+      callback: () => { void this.importNotes(); },
     });
 
     // Settings tab
@@ -164,5 +170,48 @@ export default class PMPlugin extends Plugin {
         await this.openProjectFile(pFile);
       }
     } });
+  }
+
+  private async importNotes(): Promise<void> {
+    // Try to find an active project view with a project
+    const activeLeaves = this.app.workspace.getLeavesOfType(PM_VIEW_TYPE);
+    let activeProject: Project | null = null;
+
+    for (const leaf of activeLeaves) {
+      const view = leaf.view as unknown as ProjectView;
+      if (view.project) {
+        activeProject = view.project;
+        break;
+      }
+    }
+
+    // If a project is open, use it directly
+    if (activeProject) {
+      const onImportComplete = async () => {
+        const pFile = this.app.vault.getAbstractFileByPath(activeProject!.filePath);
+        if (pFile instanceof TFile) {
+          await this.openProjectFile(pFile);
+        }
+      };
+      openImportModal(this, activeProject, onImportComplete);
+      return;
+    }
+
+    // Otherwise, show project picker first
+    const projects = await this.store.loadAllProjects(this.settings.projectsFolder);
+    if (!projects.length) {
+      this.showNotice('No projects yet. Create a project first.');
+      return;
+    }
+
+    openProjectPicker(this, projects, (project) => {
+      const onImportComplete = async () => {
+        const pFile = this.app.vault.getAbstractFileByPath(project.filePath);
+        if (pFile instanceof TFile) {
+          await this.openProjectFile(pFile);
+        }
+      };
+      openImportModal(this, project, onImportComplete);
+    });
   }
 }

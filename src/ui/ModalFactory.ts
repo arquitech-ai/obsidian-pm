@@ -4,6 +4,7 @@ import type { Project, Task } from '../types';
 import { TaskModal } from '../modals/TaskModal';
 import { ProjectModal } from '../modals/ProjectModal';
 import { ProjectPickerModal, TaskPickerModal } from '../modals/PickerModals';
+import { ImportModal } from '../modals/ImportModal';
 
 /**
  * Opens an Obsidian-native confirmation dialog.
@@ -187,4 +188,19 @@ export function openTaskPicker(
   onChoose: (task: Task) => void,
 ): void {
   new TaskPickerModal(plugin.app, tasks, onChoose).open();
+}
+
+export function openImportModal(
+  plugin: PMPlugin,
+  project: Project,
+  onImportComplete?: () => void | Promise<void>,
+): void {
+  const modal = new ImportModal(plugin.app);
+  modal.setProject(project);
+  if (onImportComplete) {
+    modal.setOnImportComplete(() => {
+      void onImportComplete();
+    });
+  }
+  modal.open();
 }
