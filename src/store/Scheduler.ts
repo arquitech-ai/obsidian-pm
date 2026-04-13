@@ -207,9 +207,11 @@ export function computeSchedule(
     } else if (currentStart && currentDue) {
       // Has both: preserve duration, shift if needed
       if (currentStart < earliestStart) {
-        const duration = daysBetween(currentStart, currentDue);
+        // Duration spans from currentStart to currentDue (both inclusive)
+        // so the number of days is daysBetween + 1
+        const duration = daysBetween(currentStart, currentDue) + 1;
         newStart = earliestStart;
-        newDue = addDays(earliestStart, duration);
+        newDue = addDays(earliestStart, duration - 1);
       }
     } else if (!currentStart && currentDue) {
       // Has only due: shift due if needed (treat as milestone)
