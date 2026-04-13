@@ -352,7 +352,7 @@ export class ImportModal extends Modal {
       row.style.borderBottom = `1px solid var(--background-modifier-border, #e0e0e0)`;
       row.style.cursor = 'pointer';
       row.style.transition = 'background-color 0.15s';
-      row.style.backgroundColor = item.selected ? 'var(--background-modifier-active, #e0e0e0)' : 'transparent';
+      row.style.backgroundColor = item.selected ? 'rgba(100, 150, 255, 0.15)' : 'transparent';
 
       row.addEventListener('mouseenter', () => {
         if (!item.selected) {
@@ -360,7 +360,7 @@ export class ImportModal extends Modal {
         }
       });
       row.addEventListener('mouseleave', () => {
-        row.style.backgroundColor = item.selected ? 'var(--background-modifier-active, #e0e0e0)' : 'transparent';
+        row.style.backgroundColor = item.selected ? 'rgba(100, 150, 255, 0.15)' : 'transparent';
       });
 
       const checkbox = row.createEl('input', { type: 'checkbox' });
@@ -374,7 +374,7 @@ export class ImportModal extends Modal {
         this.updateSelectAllCheckbox();
         this.updateNextButton();
         // Update row background
-        row.style.backgroundColor = item.selected ? 'var(--background-modifier-active, #e0e0e0)' : 'transparent';
+        row.style.backgroundColor = item.selected ? 'rgba(100, 150, 255, 0.15)' : 'transparent';
       });
 
       const nameEl = row.createEl('span', { text: item.file.basename });
