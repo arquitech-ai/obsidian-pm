@@ -1,6 +1,6 @@
 import type PMPlugin from '../../main';
 import type { Project, FilterState } from '../../types';
-import { type FlatTask, flattenTasks, findTask, deleteTaskFromTree } from '../../store/TaskTreeOps';
+import { type FlatTask, flattenTasks, findTask } from '../../store/TaskTreeOps';
 import { openTaskModal } from '../../ui/ModalFactory';
 import { focusQuickAdd } from './QuickAddBar';
 import { applyFilters, compareTask } from './TableFilters';
@@ -243,7 +243,6 @@ export function getVisibleTaskIds(state: TableState): string[] {
 }
 
 async function deleteTask(id: string, ctx: TableContext): Promise<void> {
-  deleteTaskFromTree(ctx.project.tasks, id);
-  await ctx.plugin.store.saveProject(ctx.project);
+  await ctx.plugin.store.deleteTask(ctx.project, id);
   await ctx.onRefresh();
 }
