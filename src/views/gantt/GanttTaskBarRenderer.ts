@@ -112,14 +112,14 @@ export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: n
       x: hx, y, width: HANDLE_W, height,
       rx: 3, ry: 3, class: 'pm-gantt-drag-handle', cursor: 'ew-resize',
     });
-    const cleanup = attachDragHandle(handle, side, task, rect, x, width, ctx.cfg, ctx.drag, ctx.plugin, ctx.project, ctx.onRefresh);
+    const cleanup = attachDragHandle(handle, side, task, rect, barGroup, x, width, ctx.cfg, ctx.drag, ctx.plugin, ctx.project, ctx.onRefresh);
     ctx.cleanupFns.push(cleanup);
     barGroup.appendChild(handle);
   }
 
   // Move whole bar by dragging (only when both dates exist)
   if (task.start && task.due) {
-    const moveCleanup = attachBarMove(rect, task, x, width, ctx.cfg, ctx.drag, ctx.plugin, ctx.project, ctx.onRefresh);
+    const moveCleanup = attachBarMove(rect, barGroup, task, x, width, ctx.cfg, ctx.drag, ctx.plugin, ctx.project, ctx.onRefresh);
     ctx.cleanupFns.push(moveCleanup);
     rect.setAttribute('cursor', 'grab');
   } else {

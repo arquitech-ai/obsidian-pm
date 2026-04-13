@@ -34,6 +34,7 @@ export function attachDragHandle(
   side: 'left' | 'right',
   task: Task,
   rect: SVGRectElement,
+  barGroup: SVGGElement,
   x: number,
   width: number,
   cfg: TimelineCfg,
@@ -76,6 +77,7 @@ export function attachDragHandle(
       newW = Math.max(cfg.dayWidth, newW);
       drag.dragBarEl.setAttribute('x', String(newX));
       drag.dragBarEl.setAttribute('width', String(newW));
+      repositionBarChildren(barGroup, newX, newW);
     };
 
     const onUp = safeAsync(async () => {
@@ -105,6 +107,7 @@ export function attachDragHandle(
       } catch (err) {
         drag.dragBarEl.setAttribute('x', String(drag.dragInitialX));
         drag.dragBarEl.setAttribute('width', String(drag.dragInitialW));
+        repositionBarChildren(barGroup, drag.dragInitialX, drag.dragInitialW);
         new Notice('Failed to save date change. Please try again.');
         console.error('GanttDragHandler: save failed', err);
         return;
@@ -135,6 +138,7 @@ export function attachDragHandle(
 
 export function attachBarMove(
   rect: SVGRectElement,
+  barGroup: SVGGElement,
   task: Task,
   x: number,
   width: number,
@@ -160,14 +164,16 @@ export function attachBarMove(
 
     const snapPoints = getSnapPoints(cfg);
     const snapThreshold = cfg.dayWidth * 0.4;
+    let lastSnappedX = x;
 
     const onMove = (ev: MouseEvent) => {
       if (!drag.isDragging || !drag.dragBarEl) return;
       const dx = ev.clientX - drag.dragStartX;
       if (Math.abs(dx) > 3) drag.dragMoved = true;
-      let newX = Math.max(0, drag.dragInitialX + dx);
-      newX = snapX(newX, snapPoints, snapThreshold);
-      drag.dragBarEl.setAttribute('x', String(newX));
+      lastSnappedX = Math.max(0, drag.dragInitialX + dx);
+      lastSnappedX = snapX(lastSnappedX, snapPoints, snapThreshold);
+      const translateX = lastSnappedX - drag.dragInitialX;
+      barGroup.setAttribute('transform', `translate(${translateX}, 0)`);
     };
 
     const onUp = safeAsync(async () => {
@@ -177,10 +183,12 @@ export function attachBarMove(
       activeCleanup = null;
       if (!drag.isDragging || !drag.dragTask || !drag.dragBarEl) return;
       drag.isDragging = false;
-      if (!drag.dragMoved) return;
+      if (!drag.dragMoved) {
+        barGroup.removeAttribute('transform');
+        return;
+      }
 
-      const finalX = parseFloat(drag.dragBarEl.getAttribute('x') ?? '0');
-      const snappedX = snapX(finalX, snapPoints, snapThreshold);
+      const snappedX = snapX(lastSnappedX, snapPoints, snapThreshold);
       const snappedRight = snapX(snappedX + drag.dragInitialW, snapPoints, snapThreshold);
 
       const newStart = xToDate(cfg, snappedX);
@@ -194,7 +202,7 @@ export function attachBarMove(
       try {
         await plugin.store.updateTask(project, drag.dragTask.id, patch);
       } catch (err) {
-        drag.dragBarEl.setAttribute('x', String(drag.dragInitialX));
+        barGroup.removeAttribute('transform');
         new Notice('Failed to save date change. Please try again.');
         console.error('GanttDragHandler: move save failed', err);
         return;
@@ -222,4 +230,45 @@ export function attachBarMove(
       drag.dragBarEl = null;
     }
   };
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+const HANDLE_W = 8;
+
+/** Reposition label, handles, progress overlay, and stripe to match new bar x/width during resize. */
+function repositionBarChildren(barGroup: SVGGElement, newX: number, newW: number): void {
+  const label = barGroup.querySelector('.pm-gantt-bar-label');
+  if (label) {
+    label.setAttribute('x', String(newX + 8));
+    if (newW <= 55) {
+      label.setAttribute('visibility', 'hidden');
+    } else {
+      label.removeAttribute('visibility');
+    }
+  }
+
+  const handles = barGroup.querySelectorAll('.pm-gantt-drag-handle');
+  if (handles.length === 2) {
+    handles[0].setAttribute('x', String(newX));
+    handles[1].setAttribute('x', String(newX + newW - HANDLE_W));
+  }
+
+  const progress = barGroup.querySelector('.pm-gantt-bar-progress');
+  if (progress) {
+    progress.setAttribute('x', String(newX));
+  }
+
+  // Subtask stripe — classless rect with height=3
+  for (const el of Array.from(barGroup.children)) {
+    if (el instanceof SVGRectElement && !el.classList.length && el.getAttribute('height') === '3') {
+      el.setAttribute('x', String(newX));
+      el.setAttribute('width', String(newW));
+    }
+  }
+
+  const icon = barGroup.querySelector('.pm-gantt-bar-icon');
+  if (icon) {
+    icon.setAttribute('x', String(newX + newW + 4));
+  }
 }
