@@ -11,6 +11,7 @@ import { renderSavedViewsBar } from './SavedViewsBar';
 import { renderFilterBar } from './FilterBar';
 import { renderTable, refreshTableBody, handleTableKeyDown } from './TableRenderer';
 import type { SortKey, SortDir, TableState } from './TableRenderer';
+import { updateSelectAllCheckbox } from './TableRow';
 import { renderBulkActionBar } from './BulkActionBar';
 import type { BulkAction } from './BulkActionBar';
 
@@ -189,7 +190,7 @@ export class TableView implements SubView {
       plugin: this.plugin,
       state: this.state,
       onRefresh: this.onRefresh,
-      onSelectionChange: () => this.updateBulkBar(),
+      onSelectionChange: () => { updateSelectAllCheckbox(this.state); this.updateBulkBar(); },
       onBulkDelete: safeAsync(() => this.handleBulkAction({ type: 'delete' })),
     };
   }
