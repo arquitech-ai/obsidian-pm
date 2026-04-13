@@ -8,6 +8,7 @@ import {
   findTask,
 } from './TaskTreeOps';
 import { computeSchedule } from './Scheduler';
+import { archiveTask as doArchiveTask, unarchiveTask as doUnarchiveTask } from './ArchiveOps';
 import {
   parseFrontmatter,
   hydrateProjectFromFrontmatter,
@@ -16,7 +17,6 @@ import {
   serializeProject,
   serializeTask,
   taskFilePath,
-  isOldFormat,
   FRONTMATTER_KEY,
   TASK_FRONTMATTER_KEY,
 } from './YamlSerializer';
@@ -293,38 +293,11 @@ export class ProjectStore {
   }
 
   async archiveTask(project: Project, taskId: string): Promise<void> {
-    const task = findTask(project.tasks, taskId);
-    if (!task || !task.filePath) return;
-
-    const taskFolder = this.projectTaskFolder(project);
-    const archiveFolder = normalizePath(taskFolder + '/Archive');
-    await this.ensureFolder(archiveFolder);
-
-    const fileName = task.filePath.split('/').pop()!;
-    const newPath = normalizePath(archiveFolder + '/' + fileName);
-
-    const file = this.app.vault.getAbstractFileByPath(task.filePath);
-    if (file instanceof TFile) {
-      await this.app.vault.rename(file, newPath);
-      task.filePath = newPath;
-      task.archived = true;
-    }
+    await doArchiveTask(this.app, project, taskId);
   }
 
   async unarchiveTask(project: Project, taskId: string): Promise<void> {
-    const task = findTask(project.tasks, taskId);
-    if (!task || !task.filePath) return;
-
-    const taskFolder = this.projectTaskFolder(project);
-    const fileName = task.filePath.split('/').pop()!;
-    const newPath = normalizePath(taskFolder + '/' + fileName);
-
-    const file = this.app.vault.getAbstractFileByPath(task.filePath);
-    if (file instanceof TFile) {
-      await this.app.vault.rename(file, newPath);
-      task.filePath = newPath;
-      task.archived = false;
-    }
+    await doUnarchiveTask(this.app, project, taskId);
   }
 
   async deleteTask(project: Project, taskId: string): Promise<void> {
@@ -385,17 +358,4 @@ export class ProjectStore {
     return patches.length;
   }
 
-  // ─── Migration helpers (public for migration.ts) ──────────────────────────
-
-  parseFrontmatter(content: string) {
-    return parseFrontmatter(content);
-  }
-
-  isOldFormat(frontmatter: Record<string, unknown>): boolean {
-    return isOldFormat(frontmatter);
-  }
-
-  hydrateTasksFromOldFormat(raw: unknown[]): Task[] {
-    return hydrateTasks(raw);
-  }
 }

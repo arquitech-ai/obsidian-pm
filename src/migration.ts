@@ -1,5 +1,6 @@
 import { Notice } from 'obsidian';
 import type PMPlugin from './main';
+import { parseFrontmatter, isOldFormat } from './store/YamlSerializer';
 
 /**
  * Migrates old-format projects (tasks embedded in YAML frontmatter)
@@ -16,9 +17,9 @@ export async function migrateProjects(plugin: PMPlugin): Promise<void> {
   for (const file of files) {
     try {
       const content = await plugin.app.vault.read(file);
-      const { frontmatter } = plugin.store.parseFrontmatter(content);
+      const { frontmatter } = parseFrontmatter(content);
       if (!frontmatter || frontmatter['pm-project'] !== true) continue;
-      if (!plugin.store.isOldFormat(frontmatter)) continue;
+      if (!isOldFormat(frontmatter)) continue;
 
       // This project needs migration
       const project = await plugin.store.loadProject(file);
