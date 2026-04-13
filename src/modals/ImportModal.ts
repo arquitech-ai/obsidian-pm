@@ -397,10 +397,12 @@ export class ImportModal extends Modal {
       folderEl.style.color = 'var(--text-muted, #666)';
       folderEl.style.fontSize = '0.875rem';
 
-      row.addEventListener('click', () => {
-        // Toggle checkbox, which will trigger the change event
+      row.addEventListener('click', (e) => {
+        // Don't toggle if clicking the checkbox itself — let native change event handle it
+        if (e.target === checkbox) return;
+
+        // Toggle checkbox for clicks elsewhere in the row, which will trigger the change event
         checkbox.checked = !checkbox.checked;
-        // Manually trigger change event since direct property change doesn't trigger it
         checkbox.dispatchEvent(new Event('change', { bubbles: true }));
       });
     });
