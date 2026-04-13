@@ -2,6 +2,11 @@ import type { Task, FilterState, TaskStatus, TaskPriority, DueDateFilter } from 
 import type { FlatTask } from '../../store/TaskTreeOps';
 import type { TableState } from './TableRenderer';
 
+export function isFilterActive(filter: FilterState): boolean {
+  return !!(filter.text || filter.statuses.length || filter.priorities.length ||
+    filter.assignees.length || filter.tags.length || filter.dueDateFilter !== 'any');
+}
+
 export function applyFilters(flat: FlatTask[], filter: FilterState): FlatTask[] {
   return flat.filter(({ task }) => {
     if (task.archived && !filter.showArchived) return false;

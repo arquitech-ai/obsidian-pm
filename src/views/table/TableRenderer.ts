@@ -3,7 +3,7 @@ import type { Project, FilterState } from '../../types';
 import { type FlatTask, flattenTasks, findTask } from '../../store/TaskTreeOps';
 import { openTaskModal } from '../../ui/ModalFactory';
 import { focusQuickAdd } from './QuickAddBar';
-import { applyFilters, compareTask } from './TableFilters';
+import { applyFilters, isFilterActive, compareTask } from './TableFilters';
 import { renderTaskRow, updateSelectedRow, updateSelectAllCheckbox } from './TableRow';
 
 type SortKey = 'title' | 'status' | 'priority' | 'due' | 'assignees' | 'progress';
@@ -116,12 +116,20 @@ function fillTableBody(ctx: TableContext): void {
   tbody.empty();
 
   let flat = flattenTasks(ctx.project.tasks);
+  const hasActiveFilter = isFilterActive(ctx.state.filter);
   flat = applyFilters(flat, ctx.state.filter);
+
+  // Build set of IDs present after filtering
+  const filteredIds = new Set(flat.map(f => f.task.id));
 
   // Sort with hierarchy
   const sorted: FlatTask[] = [];
   const addWithChildren = (parentId: string | null) => {
-    const items = flat.filter(f => f.parentId === parentId);
+    // Include items whose parentId matches, OR whose parent was filtered out (promote to this level)
+    const items = flat.filter(f =>
+      f.parentId === parentId ||
+      (hasActiveFilter && f.parentId !== null && !filteredIds.has(f.parentId) && parentId === null)
+    );
     items.sort((a, b) => compareTask(a.task, b.task, ctx.state));
     for (const item of items) {
       sorted.push(item);
@@ -131,8 +139,9 @@ function fillTableBody(ctx: TableContext): void {
   addWithChildren(null);
 
   for (const { task, depth, parentId, visible } of sorted) {
-    if (!visible) continue;
-    renderTaskRow(tbody, task, depth, parentId, ctx);
+    // When filtering, show all matches regardless of collapsed parent
+    if (!hasActiveFilter && !visible) continue;
+    renderTaskRow(tbody, task, depth, hasActiveFilter ? null : parentId, ctx);
   }
 
   // "Add task" row
