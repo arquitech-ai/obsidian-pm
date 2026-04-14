@@ -22,7 +22,7 @@ export function renderFilterBar(container: HTMLElement, ctx: FilterBarContext): 
   // Text search
   const search = bar.createEl('input', {
     type: 'text',
-    placeholder: '🔍 Search tasks…',
+    placeholder: 'Search tasks…',
     cls: 'pm-filter-input',
   });
   search.value = ctx.filter.text;
