@@ -4,7 +4,7 @@ import { type FlatTask, flattenTasks, filterArchived } from '../../store/TaskTre
 import { openTaskModal } from '../../ui/ModalFactory';
 import type { SubView } from '../SubView';
 import type { TimelineCfg } from './TimelineConfig';
-import { buildTimelineConfig, dateToX, HEADER_HEIGHT, ROW_HEIGHT, LABEL_WIDTH } from './TimelineConfig';
+import { buildTimelineConfig, dateToX, xToDate, HEADER_HEIGHT, ROW_HEIGHT, LABEL_WIDTH } from './TimelineConfig';
 import { makeDragState } from './GanttDragHandler';
 import type { DragState } from './GanttDragHandler';
 import { makeLinkState, cancelLink } from './GanttLinkHandler';
@@ -24,7 +24,7 @@ export class GanttView implements SubView {
   private link: LinkState = makeLinkState();
   private labelWidth: number = LABEL_WIDTH;
   private cleanupFns: (() => void)[] = [];
-  private pendingScroll: { top: number; left: number } | null = null;
+  private pendingScroll: { top: number; anchorDate: Date } | null = null;
 
   constructor(
     private container: HTMLElement,
@@ -40,11 +40,15 @@ export class GanttView implements SubView {
     this.cleanupFns = [];
   }
 
-  getScrollPosition(): { top: number; left: number } {
-    return { top: this.scrollEl?.scrollTop ?? 0, left: this.scrollEl?.scrollLeft ?? 0 };
+  getScrollPosition(): { top: number; anchorDate: Date } {
+    const top = this.scrollEl?.scrollTop ?? 0;
+    const anchorDate = this.scrollEl
+      ? xToDate(this.cfg, this.scrollEl.scrollLeft)
+      : new Date();
+    return { top, anchorDate };
   }
 
-  setPendingScroll(pos: { top: number; left: number }): void {
+  setPendingScroll(pos: { top: number; anchorDate: Date }): void {
     this.pendingScroll = pos;
   }
 
@@ -201,7 +205,7 @@ export class GanttView implements SubView {
       syncSpacer();
       if (this.pendingScroll) {
         this.scrollEl.scrollTop = this.pendingScroll.top;
-        this.scrollEl.scrollLeft = this.pendingScroll.left;
+        this.scrollEl.scrollLeft = Math.max(0, dateToX(this.cfg, this.pendingScroll.anchorDate));
         this.pendingScroll = null;
       } else {
         this.scrollToToday();

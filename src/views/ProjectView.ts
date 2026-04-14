@@ -243,7 +243,7 @@ export class ProjectView extends ItemView {
       && document.activeElement.matches('.pm-quick-add-input');
 
     // Save Gantt scroll position before destroying the old view
-    let savedGanttScroll: { top: number; left: number } | null = null;
+    let savedGanttScroll: { top: number; anchorDate: Date } | null = null;
     if (this.currentView === 'gantt' && this.subview instanceof GanttView) {
       savedGanttScroll = this.subview.getScrollPosition();
     }
