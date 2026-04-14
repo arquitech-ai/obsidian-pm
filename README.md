@@ -1,12 +1,10 @@
 # Project Manager for Obsidian
 
-**Full-featured project management, natively in your vault.**
+Full-featured project management, natively in your vault.
 
 Table views, Gantt charts, Kanban boards, custom fields, time tracking, smart scheduling — all stored as plain Markdown with YAML frontmatter. No external services. No sync subscriptions. Your data stays yours.
 
 <img width="1422" height="791" alt="Project Manager dashboard" src="https://github.com/user-attachments/assets/ca6bc67f-e656-45be-b93a-17410555ec1a" />
-
----
 
 ## What's inside
 
@@ -15,8 +13,6 @@ Table views, Gantt charts, Kanban boards, custom fields, time tracking, smart sc
 - **Real project management** — Not just checkboxes. Dependencies, milestones, subtasks, time tracking, recurring tasks, smart scheduling, bulk actions.
 - **Customizable everything** — Custom fields, statuses, priorities, saved views — adapt the tool to your workflow, not the other way around.
 - **Works offline** — No cloud, no API calls, no accounts. Just Obsidian.
-
----
 
 ## Views
 
@@ -37,8 +33,6 @@ Interactive timeline with draggable bars, resizable edges, and dependency arrows
 Card-based board grouped by status. Drag cards between columns to update status instantly. Cards show priority, assignees, and tags at a glance.
 
 <video src="https://github.com/user-attachments/assets/316fc43b-6915-499a-a6ad-0680c462d014" autoplay loop muted playsinline width="400"></video>
-
----
 
 ## Features
 
@@ -73,8 +67,6 @@ Card-based board grouped by status. Drag cards between columns to update status 
 
 <img width="1422" height="820" alt="Task detail modal" src="https://github.com/user-attachments/assets/28f0f768-bb80-4128-b3ce-3d4090b8032f" />
 
----
-
 ## Task properties
 
 Each task is a `.md` file in your vault supporting:
@@ -97,11 +89,7 @@ Each task is a `.md` file in your vault supporting:
 | Recurrence | Repeat interval and end date |
 | Custom fields | Any per-project fields you define |
 
----
-
 ## Installation
-
-### From community plugins
 
 ### Via BRAT (beta releases)
 
@@ -122,7 +110,7 @@ Each task is a `.md` file in your vault supporting:
 ## Quick start
 
 1. Click the dashboard icon in the ribbon (or run **Open projects pane** from the command palette).
-2. Click **New project** to create your first project. Give it a name, color, and optional icon.
+2. Click **New project** to create your first project. Give it a name, color, and icon.
 3. Open the project — it opens in Table view by default.
 4. Press **+ Add task** to create your first task.
 5. Switch views using the Table / Gantt / Kanban tabs at the top.
