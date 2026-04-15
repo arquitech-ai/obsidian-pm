@@ -111,6 +111,7 @@ export interface PMSettings {
   notificationsEnabled: boolean;
   notificationLeadDays: number;
   autoSchedule: boolean;
+  ganttHideDone: boolean;
 }
 
 // ─── Defaults ────────────────────────────────────────────────────────────────
@@ -139,6 +140,7 @@ export const DEFAULT_SETTINGS: PMSettings = {
   statuses: DEFAULT_STATUSES,
   priorities: DEFAULT_PRIORITIES,
   globalTeamMembers: [],
+  ganttHideDone: false,
   notificationsEnabled: true,
   notificationLeadDays: 2,
   autoSchedule: true,

@@ -102,6 +102,13 @@ export function filterArchived(tasks: Task[]): Task[] {
     .map(t => t.subtasks.length ? { ...t, subtasks: filterArchived(t.subtasks) } : t);
 }
 
+/** Filter done/cancelled tasks from a task tree (returns a shallow copy) */
+export function filterDone(tasks: Task[]): Task[] {
+  return tasks
+    .filter(t => t.status !== 'done' && t.status !== 'cancelled')
+    .map(t => t.subtasks.length ? { ...t, subtasks: filterDone(t.subtasks) } : t);
+}
+
 /** Collect all unique assignees from a task tree */
 export function collectAllAssignees(tasks: Task[], extra?: string[]): string[] {
   const set = new Set<string>();

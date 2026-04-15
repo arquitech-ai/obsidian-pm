@@ -1,6 +1,6 @@
 import type PMPlugin from '../../main';
 import type { Project, Task, GanttGranularity } from '../../types';
-import { type FlatTask, flattenTasks, filterArchived } from '../../store/TaskTreeOps';
+import { type FlatTask, flattenTasks, filterArchived, filterDone } from '../../store/TaskTreeOps';
 import { openTaskModal } from '../../ui/ModalFactory';
 import type { SubView } from '../SubView';
 import type { TimelineCfg } from './TimelineConfig';
@@ -23,6 +23,9 @@ export class GanttView implements SubView {
   private drag: DragState = makeDragState();
   private link: LinkState = makeLinkState();
   private labelWidth: number = LABEL_WIDTH;
+
+  getLabelWidth(): number { return this.labelWidth; }
+  setLabelWidth(w: number): void { this.labelWidth = w; }
   private cleanupFns: (() => void)[] = [];
   private pendingScroll: { top: number; anchorDate: Date } | null = null;
 
@@ -59,7 +62,7 @@ export class GanttView implements SubView {
     this.container.empty();
     this.container.addClass('pm-gantt-view');
 
-    const activeTasks = filterArchived(this.project.tasks);
+    const activeTasks = this.getVisibleTasks();
     this.flatTasks = flattenTasks(activeTasks).filter(f => f.visible || f.depth === 0);
     this.cfg = buildTimelineConfig(activeTasks, this.granularity);
 
@@ -91,6 +94,19 @@ export class GanttView implements SubView {
     expBtn.addEventListener('click', () => this.setAllCollapsed(false));
     const colBtn = bar.createEl('button', { text: 'Collapse all', cls: 'pm-btn pm-btn-ghost' });
     colBtn.addEventListener('click', () => this.setAllCollapsed(true));
+
+    bar.createEl('span', { cls: 'pm-gantt-sep' });
+    const hideDone = this.plugin.settings.ganttHideDone;
+    const toggleBtn = bar.createEl('button', {
+      text: hideDone ? 'Show completed' : 'Hide completed',
+      cls: 'pm-btn pm-btn-ghost',
+    });
+    if (hideDone) toggleBtn.addClass('pm-gantt-toggle-active');
+    toggleBtn.addEventListener('click', () => {
+      this.plugin.settings.ganttHideDone = !this.plugin.settings.ganttHideDone;
+      void this.plugin.saveSettings();
+      this.render();
+    });
   }
 
   private renderGantt(): void {
@@ -229,8 +245,7 @@ export class GanttView implements SubView {
         }
       }
     };
-    const activeTasks = filterArchived(this.project.tasks);
-    renderFlatList(activeTasks, 0);
+    renderFlatList(this.getVisibleTasks(), 0);
   }
 
   private makeRendererContext(): RendererContext {
@@ -245,6 +260,11 @@ export class GanttView implements SubView {
       onRefresh: this.onRefresh,
       cleanupFns: this.cleanupFns,
     };
+  }
+
+  private getVisibleTasks(): Task[] {
+    const tasks = filterArchived(this.project.tasks);
+    return this.plugin.settings.ganttHideDone ? filterDone(tasks) : tasks;
   }
 
   private scrollToToday(): void {

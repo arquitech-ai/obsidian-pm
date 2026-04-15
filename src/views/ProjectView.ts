@@ -242,10 +242,12 @@ export class ProjectView extends ItemView {
     const quickAddFocused = document.activeElement instanceof HTMLElement
       && document.activeElement.matches('.pm-quick-add-input');
 
-    // Save Gantt scroll position before destroying the old view
+    // Save Gantt scroll position and label width before destroying the old view
     let savedGanttScroll: { top: number; anchorDate: Date } | null = null;
+    let savedGanttLabelWidth: number | null = null;
     if (this.currentView === 'gantt' && this.subview instanceof GanttView) {
       savedGanttScroll = this.subview.getScrollPosition();
+      savedGanttLabelWidth = this.subview.getLabelWidth();
     }
 
     // Save TableView filter/sort state so it survives project reloads
@@ -266,6 +268,7 @@ export class ProjectView extends ItemView {
       case 'gantt': {
         const gantt = new GanttView(this.contentEl2, this.project, this.plugin, () => this.refreshProject());
         if (savedGanttScroll) gantt.setPendingScroll(savedGanttScroll);
+        if (savedGanttLabelWidth !== null) gantt.setLabelWidth(savedGanttLabelWidth);
         this.subview = gantt;
         break;
       }

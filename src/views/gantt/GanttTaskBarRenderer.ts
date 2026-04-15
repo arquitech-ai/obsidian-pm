@@ -1,6 +1,6 @@
 import { Notice } from 'obsidian';
 import type { Task } from '../../types';
-import { flattenTasks, filterArchived } from '../../store/TaskTreeOps';
+import { flattenTasks, filterArchived, filterDone } from '../../store/TaskTreeOps';
 import { openTaskModal } from '../../ui/ModalFactory';
 import { COLOR_ACCENT } from '../../constants';
 import { svgEl, getStatusConfig, safeAsync } from '../../utils';
@@ -285,7 +285,8 @@ export function renderMilestoneLabels(ctx: RendererContext): void {
 // ─── Dependency arrows ─────────────────────────────────────────────────────
 
 export function renderDependencyArrows(ctx: RendererContext): void {
-  const activeTasks = filterArchived(ctx.project.tasks);
+  let activeTasks = filterArchived(ctx.project.tasks);
+  if (ctx.plugin.settings.ganttHideDone) activeTasks = filterDone(activeTasks);
   const allFlat = flattenTasks(activeTasks);
   const indexMap = new Map<string, number>();
   let visibleRow = 0;
