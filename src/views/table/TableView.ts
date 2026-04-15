@@ -142,6 +142,14 @@ export class TableView implements SubView {
         case 'set-progress':
           await this.plugin.store.updateTasks(this.project, ids, { progress: action.progress });
           break;
+        case 'set-parent':
+          await this.plugin.store.moveTasks(this.project, ids, action.parentId);
+          new Notice(`Moved ${ids.length} task${ids.length > 1 ? 's' : ''} under new parent`);
+          break;
+        case 'remove-parent':
+          await this.plugin.store.moveTasks(this.project, ids, null);
+          new Notice(`Moved ${ids.length} task${ids.length > 1 ? 's' : ''} to top level`);
+          break;
         case 'archive':
           for (const id of ids) {
             await this.plugin.store.archiveTask(this.project, id);

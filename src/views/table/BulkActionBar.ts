@@ -1,8 +1,9 @@
 import { Menu } from 'obsidian';
 import type { Task, TaskStatus, TaskPriority } from '../../types';
-import { findTask, collectAllAssignees, collectAllTags } from '../../store';
+import { findTask, flattenTasks, collectAllAssignees, collectAllTags } from '../../store';
 import { formatBadgeText } from '../../utils';
 import { promptText } from '../../ui/ModalFactory';
+import { TaskPickerModal } from '../../modals/PickerModals';
 import type { TableContext } from './TableRenderer';
 import { updateSelectAllCheckbox } from './TableRow';
 
@@ -13,6 +14,8 @@ export type BulkAction =
   | { type: 'set-tag'; tag: string }
   | { type: 'set-due-date'; due: string }
   | { type: 'set-progress'; progress: number }
+  | { type: 'set-parent'; parentId: string }
+  | { type: 'remove-parent' }
   | { type: 'archive' }
   | { type: 'unarchive' }
   | { type: 'delete' };
@@ -160,6 +163,32 @@ function updateBarContent(bar: HTMLElement, ctx: TableContext, onAction: (a: Bul
     }
     menu.showAtMouseEvent(e);
   });
+
+  // Set parent / Remove parent buttons
+  const parentBtn = left.createEl('button', { text: 'Set parent', cls: 'pm-btn pm-btn-ghost pm-btn-sm' });
+  parentBtn.addEventListener('click', () => {
+    const selectedIdSet = new Set(ctx.state.selectedTaskIds);
+    // Collect all descendants of selected tasks to prevent circular refs
+    const excludedIds = new Set<string>(selectedIdSet);
+    for (const id of selectedIdSet) {
+      const task = findTask(ctx.project.tasks, id);
+      if (task) {
+        for (const ft of flattenTasks(task.subtasks)) {
+          excludedIds.add(ft.task.id);
+        }
+      }
+    }
+    const candidates = flattenTasks(ctx.project.tasks)
+      .filter(ft => !excludedIds.has(ft.task.id))
+      .map(ft => ft.task);
+    const modal = new TaskPickerModal(ctx.plugin.app, candidates, (chosen) => {
+      onAction({ type: 'set-parent', parentId: chosen.id });
+    });
+    modal.open();
+  });
+
+  const removeParentBtn = left.createEl('button', { text: 'Remove parent', cls: 'pm-btn pm-btn-ghost pm-btn-sm' });
+  removeParentBtn.addEventListener('click', () => onAction({ type: 'remove-parent' }));
 
   // Archive / Unarchive button — show based on selected tasks' state
   const selectedIds = [...ctx.state.selectedTaskIds];

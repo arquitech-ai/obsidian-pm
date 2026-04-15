@@ -288,6 +288,16 @@ export class ProjectStore {
     await this.saveProject(project);
   }
 
+  async moveTasks(project: Project, taskIds: string[], newParentId: string | null): Promise<void> {
+    for (const id of taskIds) {
+      const task = findTask(project.tasks, id);
+      if (!task) continue;
+      deleteTaskFromTree(project.tasks, id);
+      addTaskToTree(project.tasks, task, newParentId);
+    }
+    await this.saveProject(project);
+  }
+
   async updateTask(project: Project, taskId: string, patch: Partial<Task>): Promise<void> {
     updateTaskInTree(project.tasks, taskId, patch);
     await this.saveProject(project);
