@@ -94,17 +94,19 @@ export class ProjectStore {
 
     const taskMap = new Map<string, Task>();
     const subtaskIdsMap = new Map<string, string[]>();
+    const parentIdMap = new Map<string, string>();
     const archivePrefix = normalizePath(folderPath + '/Archive') + '/';
 
     const files = this.app.vault.getMarkdownFiles().filter(f => f.path.startsWith(folderPath + '/'));
     for (const file of files) {
-      const { task, subtaskIds } = await this.loadTaskFile(file);
+      const { task, subtaskIds, parentId } = await this.loadTaskFile(file);
       if (task) {
         if (file.path.startsWith(archivePrefix)) {
           task.archived = true;
         }
         taskMap.set(task.id, task);
         if (subtaskIds.length) subtaskIdsMap.set(task.id, subtaskIds);
+        if (parentId) parentIdMap.set(task.id, parentId);
       }
     }
 
@@ -116,6 +118,26 @@ export class ProjectStore {
         const sub = taskMap.get(sid);
         if (sub) task.subtasks.push(sub);
       }
+    }
+
+    // Self-healing: re-parent orphaned tasks using parentId from their files
+    const childIds = new Set<string>();
+    for (const t of taskMap.values()) {
+      for (const s of t.subtasks) childIds.add(s.id);
+    }
+    for (const [taskId, pid] of parentIdMap) {
+      if (childIds.has(taskId)) continue; // already parented
+      const parent = taskMap.get(pid);
+      if (!parent) continue;
+      const task = taskMap.get(taskId);
+      if (!task) continue;
+      parent.subtasks.push(task);
+      childIds.add(taskId);
+      // Ensure parent's subtaskIds stay in sync
+      if (!subtaskIdsMap.has(pid)) subtaskIdsMap.set(pid, []);
+      const sids = subtaskIdsMap.get(pid);
+      if (sids && !sids.includes(taskId)) sids.push(taskId);
+      console.warn(`[PM] Self-healed orphan: re-parented task "${task.title}" (${taskId}) under "${parent.title}" (${pid})`);
     }
 
     const result: Task[] = [];
@@ -135,11 +157,11 @@ export class ProjectStore {
     return result;
   }
 
-  async loadTaskFile(file: TFile): Promise<{ task: Task | null; subtaskIds: string[] }> {
+  async loadTaskFile(file: TFile): Promise<{ task: Task | null; subtaskIds: string[]; parentId: string | null }> {
     try {
       const content = await this.app.vault.read(file);
       const { frontmatter, body } = parseFrontmatter(content);
-      if (!frontmatter || frontmatter[TASK_FRONTMATTER_KEY] !== true) return { task: null, subtaskIds: [] };
+      if (!frontmatter || frontmatter[TASK_FRONTMATTER_KEY] !== true) return { task: null, subtaskIds: [], parentId: null };
 
       return hydrateTaskFromFile(frontmatter, body, file.path);
     } catch (e) {
@@ -149,7 +171,7 @@ export class ProjectStore {
         console.error(`[PM] Failed to load task ${file.path}:`, e);
         new Notice(`Project Manager: Failed to load task "${file.basename}". Check console for details.`);
       }
-      return { task: null, subtaskIds: [] };
+      return { task: null, subtaskIds: [], parentId: null };
     }
   }
 
