@@ -1726,26 +1726,9 @@
   padding: 1px 5px;
 }
 
-/* ── Collapsible properties toggle ───────────────────────────────────── */
+/* ── Properties container ────────────────────────────────────────────── */
 .pm-modal-props-container {
   padding: 0 24px;
-}
-.pm-props-toggle-btn {
-  all: unset;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--pm-text-muted);
-  padding: 8px 0;
-  display: block;
-  width: 100%;
-  transition: color 0.15s;
-}
-.pm-props-toggle-btn:hover { color: var(--pm-text); }
-.pm-modal-props--collapsed {
-  display: none !important;
 }
 .pm-modal-desc-section {
   border-top: none;

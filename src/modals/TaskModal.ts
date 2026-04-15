@@ -16,7 +16,6 @@ export class TaskModal extends Modal {
   private originalParentId: string | null;
   private cancelled = false;
   private saved = false;
-  private propsExpanded = false;
   private noteSuggest: NoteLinkSuggest | null = null;
 
   constructor(
@@ -187,18 +186,9 @@ export class TaskModal extends Modal {
       setTimeout(autoResize, 0);
     }
 
-    // ── Properties (collapsible) ────────────────────────────────────────────
+    // ── Properties ─────────────────────────────────────────────────────────
     const propsContainer = contentEl.createDiv('pm-modal-props-container');
-    const propsToggle = propsContainer.createEl('button', { cls: 'pm-props-toggle-btn', attr: { 'aria-expanded': String(this.propsExpanded), 'aria-label': 'Toggle properties' } });
     const props = propsContainer.createDiv('pm-modal-props');
-    const applyPropsState = (expanded: boolean) => {
-      this.propsExpanded = expanded;
-      propsToggle.setText(expanded ? 'Properties \u25BC' : 'Properties \u25B6');
-      propsToggle.setAttribute('aria-expanded', String(expanded));
-      props.toggleClass('pm-modal-props--collapsed', !expanded);
-    };
-    applyPropsState(this.propsExpanded);
-    propsToggle.addEventListener('click', () => applyPropsState(!this.propsExpanded));
 
     renderTaskFormFields(props, {
       task: this.task,
