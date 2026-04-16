@@ -286,7 +286,7 @@ export function renderMilestoneLabels(ctx: RendererContext): void {
 
 export function renderDependencyArrows(ctx: RendererContext): void {
   let activeTasks = filterArchived(ctx.project.tasks);
-  if (ctx.plugin.settings.ganttHideDone) activeTasks = filterDone(activeTasks);
+  if (ctx.plugin.settings.ganttHideDone) activeTasks = filterDone(activeTasks, ctx.plugin.settings.statuses);
   const allFlat = flattenTasks(activeTasks);
   const indexMap = new Map<string, number>();
   let visibleRow = 0;

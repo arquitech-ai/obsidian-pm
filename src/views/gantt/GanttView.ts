@@ -264,7 +264,7 @@ export class GanttView implements SubView {
 
   private getVisibleTasks(): Task[] {
     const tasks = filterArchived(this.project.tasks);
-    return this.plugin.settings.ganttHideDone ? filterDone(tasks) : tasks;
+    return this.plugin.settings.ganttHideDone ? filterDone(tasks, this.plugin.settings.statuses) : tasks;
   }
 
   private scrollToToday(): void {
