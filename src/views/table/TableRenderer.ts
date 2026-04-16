@@ -117,7 +117,7 @@ function fillTableBody(ctx: TableContext): void {
 
   let flat = flattenTasks(ctx.project.tasks);
   const hasActiveFilter = isFilterActive(ctx.state.filter);
-  flat = applyFilters(flat, ctx.state.filter);
+  flat = applyFilters(flat, ctx.state.filter, ctx.plugin.settings.statuses);
 
   // Build set of IDs present after filtering
   const filteredIds = new Set(flat.map(f => f.task.id));
@@ -130,7 +130,7 @@ function fillTableBody(ctx: TableContext): void {
       f.parentId === parentId ||
       (hasActiveFilter && f.parentId !== null && !filteredIds.has(f.parentId) && parentId === null)
     );
-    items.sort((a, b) => compareTask(a.task, b.task, ctx.state));
+    items.sort((a, b) => compareTask(a.task, b.task, ctx.state, ctx.plugin.settings.statuses));
     for (const item of items) {
       sorted.push(item);
       addWithChildren(item.task.id);

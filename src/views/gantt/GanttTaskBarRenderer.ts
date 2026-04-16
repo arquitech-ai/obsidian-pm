@@ -213,7 +213,7 @@ function renderEmptyRowClickTarget(g: SVGGElement, task: Task, row: number, ctx:
       return;
     }
     if (ctx.plugin.settings.autoSchedule) {
-      await ctx.plugin.store.scheduleAfterChange(ctx.project, task.id);
+      await ctx.plugin.store.scheduleAfterChange(ctx.project, task.id, ctx.plugin.settings.statuses);
     }
     await ctx.onRefresh();
   }));

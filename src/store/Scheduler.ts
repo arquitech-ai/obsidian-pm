@@ -1,5 +1,6 @@
-import { Task } from '../types';
+import { Task, StatusConfig } from '../types';
 import { flattenTasks } from './TaskTreeOps';
+import { isTerminalStatus } from '../utils';
 
 /* ── Types ─────────────────────────────────────────────────────── */
 
@@ -82,6 +83,7 @@ export function wouldCreateCycle(
 export function computeSchedule(
   tasks: Task[],
   changedTaskId?: string,
+  statuses: StatusConfig[] = [],
 ): ScheduleResult {
   const flat = flattenTasks(tasks).map((ft) => ft.task);
   const taskById = new Map<string, Task>();
@@ -172,7 +174,7 @@ export function computeSchedule(
     const task = taskById.get(id)!;
 
     // Skip done/cancelled tasks
-    if (task.status === 'done' || task.status === 'cancelled') continue;
+    if (isTerminalStatus(task.status, statuses)) continue;
 
     const deps = predecessorsOf.get(id) ?? [];
     if (deps.length === 0) continue;

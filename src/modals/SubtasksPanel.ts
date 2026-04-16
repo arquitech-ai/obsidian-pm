@@ -2,7 +2,7 @@ import type PMPlugin from '../main';
 import type { Task } from '../types';
 import { makeTask } from '../types';
 import { COLOR_MUTED } from '../constants';
-import { getStatusConfig } from '../utils';
+import { getStatusConfig, isTerminalStatus, getCompleteStatusId, getDefaultStatusId } from '../utils';
 
 /**
  * Renders the subtasks section (list + add button) into the given container.
@@ -20,10 +20,11 @@ export function renderSubtasksPanel(container: HTMLElement, task: Task, plugin: 
       const row = subList.createDiv('pm-modal-subtask-row');
       const subStatus = getStatusConfig(plugin.settings.statuses, sub.status);
 
+      const statuses = plugin.settings.statuses;
       const check = row.createEl('input', { type: 'checkbox', cls: 'pm-subtask-checkbox' });
-      check.checked = sub.status === 'done';
+      check.checked = isTerminalStatus(sub.status, statuses);
       check.addEventListener('change', () => {
-        sub.status = check.checked ? 'done' : 'todo';
+        sub.status = check.checked ? getCompleteStatusId(statuses) : getDefaultStatusId(statuses);
         sub.progress = check.checked ? 100 : 0;
         renderSubtasks();
       });

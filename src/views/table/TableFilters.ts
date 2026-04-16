@@ -1,13 +1,14 @@
-import type { Task, FilterState, TaskStatus, TaskPriority, DueDateFilter } from '../../types';
+import type { Task, FilterState, TaskPriority, DueDateFilter, StatusConfig } from '../../types';
 import type { FlatTask } from '../../store/TaskTreeOps';
 import type { TableState } from './TableRenderer';
+import { isTerminalStatus, statusSortOrder } from '../../utils';
 
 export function isFilterActive(filter: FilterState): boolean {
   return !!(filter.text || filter.statuses.length || filter.priorities.length ||
     filter.assignees.length || filter.tags.length || filter.dueDateFilter !== 'any');
 }
 
-export function applyFilters(flat: FlatTask[], filter: FilterState): FlatTask[] {
+export function applyFilters(flat: FlatTask[], filter: FilterState, statuses: StatusConfig[] = []): FlatTask[] {
   return flat.filter(({ task }) => {
     if (task.archived && !filter.showArchived) return false;
     if (filter.text) {
@@ -23,13 +24,13 @@ export function applyFilters(flat: FlatTask[], filter: FilterState): FlatTask[] 
     if (filter.assignees.length && !task.assignees.some(a => filter.assignees.includes(a))) return false;
     if (filter.tags.length && !task.tags.some(t => filter.tags.includes(t))) return false;
     if (filter.dueDateFilter !== 'any') {
-      if (!matchDueDateFilter(task, filter.dueDateFilter)) return false;
+      if (!matchDueDateFilter(task, filter.dueDateFilter, statuses)) return false;
     }
     return true;
   });
 }
 
-function matchDueDateFilter(task: Task, filter: DueDateFilter): boolean {
+function matchDueDateFilter(task: Task, filter: DueDateFilter, statuses: StatusConfig[] = []): boolean {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -39,7 +40,7 @@ function matchDueDateFilter(task: Task, filter: DueDateFilter): boolean {
     case 'overdue': {
       if (!task.due) return false;
       const d = new Date(task.due);
-      return d < today && task.status !== 'done' && task.status !== 'cancelled';
+      return d < today && !isTerminalStatus(task.status, statuses);
     }
     case 'this-week': {
       if (!task.due) return false;
@@ -59,21 +60,17 @@ function matchDueDateFilter(task: Task, filter: DueDateFilter): boolean {
   }
 }
 
-export function compareTask(a: Task, b: Task, state: TableState): number {
+export function compareTask(a: Task, b: Task, state: TableState, statuses: StatusConfig[] = []): number {
   const dir = state.sortDir === 'asc' ? 1 : -1;
   switch (state.sortKey) {
     case 'title':     return dir * a.title.localeCompare(b.title);
-    case 'status':    return dir * statusOrder(a.status) - dir * statusOrder(b.status);
+    case 'status':    return dir * (statusSortOrder(a.status, statuses) - statusSortOrder(b.status, statuses));
     case 'priority':  return dir * priorityOrder(a.priority) - dir * priorityOrder(b.priority);
     case 'due':       return dir * (a.due || 'zzz').localeCompare(b.due || 'zzz');
     case 'assignees': return dir * (a.assignees[0] ?? '').localeCompare(b.assignees[0] ?? '');
     case 'progress':  return dir * (a.progress - b.progress);
     default:          return 0;
   }
-}
-
-function statusOrder(s: TaskStatus): number {
-  return { 'in-progress': 0, 'blocked': 1, 'review': 2, 'todo': 3, 'done': 4, 'cancelled': 5 }[s] ?? 99;
 }
 
 function priorityOrder(p: TaskPriority): number {

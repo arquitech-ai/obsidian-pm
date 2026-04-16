@@ -2,7 +2,7 @@ import { App, Component, Modal, MarkdownRenderer, Notice } from 'obsidian';
 import type PMPlugin from '../main';
 import { Project, Task, makeTask } from '../types';
 import { flattenTasks } from '../store/TaskTreeOps';
-import { safeAsync } from '../utils';
+import { safeAsync, getDefaultStatusId } from '../utils';
 import { renderStatusDot } from '../ui/StatusBadge';
 import { confirmDialog } from '../ui/ModalFactory';
 import { renderTaskFormFields } from './TaskFormFields';
@@ -38,7 +38,7 @@ export class TaskModal extends Modal {
         this.parentId = entry?.parentId ?? null;
       }
     } else {
-      this.task = makeTask({ status: 'todo', priority: 'medium', ...defaults });
+      this.task = makeTask({ status: getDefaultStatusId(plugin.settings.statuses), priority: 'medium', ...defaults });
       this.isNew = true;
     }
     this.originalParentId = this.parentId;
@@ -71,7 +71,7 @@ export class TaskModal extends Modal {
       await this.plugin.store.updateTask(this.project, this.task.id, this.task);
     }
     if (this.plugin.settings.autoSchedule) {
-      await this.plugin.store.scheduleAfterChange(this.project, this.task.id);
+      await this.plugin.store.scheduleAfterChange(this.project, this.task.id, this.plugin.settings.statuses);
     }
     await this.onSave(this.task);
   }

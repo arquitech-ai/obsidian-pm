@@ -1,4 +1,4 @@
-import { getStatusConfig } from '../../utils';
+import { getStatusConfig, isTerminalStatus } from '../../utils';
 import type { Task } from '../../types';
 import type { TableContext, TableState } from './TableRenderer';
 import {
@@ -18,7 +18,7 @@ import {
 // ─── Row orchestrator ──────────────────────────────────────────────────────────
 
 export function renderTaskRow(tbody: HTMLElement, task: Task, depth: number, _parentId: string | null, ctx: TableContext): void {
-  const isDone = task.status === 'done' || task.status === 'cancelled';
+  const isDone = isTerminalStatus(task.status, ctx.plugin.settings.statuses);
   const statusConfig = getStatusConfig(ctx.plugin.settings.statuses, task.status);
 
   const row = tbody.createEl('tr', { cls: 'pm-table-row' });

@@ -2,7 +2,7 @@ import { Menu } from 'obsidian';
 import type PMPlugin from '../main';
 import { Project, Task, TaskStatus } from '../types';
 import { totalLoggedHours } from '../store/TaskTreeOps';
-import { stringToColor, formatDateShort, isTaskOverdue, getPriorityConfig, formatBadgeText, safeAsync } from '../utils';
+import { stringToColor, formatDateShort, isTaskOverdue, isTerminalStatus, getPriorityConfig, formatBadgeText, safeAsync } from '../utils';
 import { openTaskModal } from '../ui/ModalFactory';
 import { buildTaskContextMenu } from '../ui/TaskContextMenu';
 import type { SubView } from './SubView';
@@ -174,7 +174,7 @@ export class KanbanView implements SubView {
     // Subtask count
     if (task.subtasks.length) {
       body.createEl('span', {
-        text: `${task.subtasks.filter(s => s.status === 'done').length}/${task.subtasks.length} subtasks`,
+        text: `${task.subtasks.filter(s => isTerminalStatus(s.status, this.plugin.settings.statuses)).length}/${task.subtasks.length} subtasks`,
         cls: 'pm-kanban-card-subtasks',
       });
     }

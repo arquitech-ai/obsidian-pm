@@ -1,7 +1,7 @@
 import { TFile, Menu } from 'obsidian';
 import type PMPlugin from '../main';
-import type { Task } from '../types';
-import { safeAsync } from '../utils';
+import type { Task, StatusConfig } from '../types';
+import { safeAsync, isTerminalStatus } from '../utils';
 import { openProjectModal } from '../ui/ModalFactory';
 
 export interface ProjectListContext {
@@ -59,8 +59,8 @@ export async function renderProjectListContent(ctx: ProjectListContext): Promise
     body.createEl('h3', { text: project.title, cls: 'pm-project-card-title' });
 
     const meta = body.createDiv('pm-project-card-meta');
-    const total = countTasks(project.tasks, false);
-    const done = countTasks(project.tasks, true);
+    const total = countTasks(project.tasks, false, ctx.plugin.settings.statuses);
+    const done = countTasks(project.tasks, true, ctx.plugin.settings.statuses);
     meta.createEl('span', { text: `${done}/${total} tasks`, cls: 'pm-project-card-tasks' });
 
     const progressBar = body.createDiv('pm-project-card-progress');
@@ -90,11 +90,11 @@ export async function renderProjectListContent(ctx: ProjectListContext): Promise
   }
 }
 
-function countTasks(tasks: Task[], doneOnly: boolean): number {
+function countTasks(tasks: Task[], doneOnly: boolean, statuses: StatusConfig[]): number {
   let n = 0;
   for (const t of tasks) {
-    if (!doneOnly || t.status === 'done') n++;
-    n += countTasks(t.subtasks, doneOnly);
+    if (!doneOnly || isTerminalStatus(t.status, statuses)) n++;
+    n += countTasks(t.subtasks, doneOnly, statuses);
   }
   return n;
 }

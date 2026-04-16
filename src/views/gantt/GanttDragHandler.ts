@@ -113,7 +113,7 @@ export function attachDragHandle(
         return;
       }
       if (plugin.settings.autoSchedule) {
-        await plugin.store.scheduleAfterChange(project, drag.dragTask.id);
+        await plugin.store.scheduleAfterChange(project, drag.dragTask.id, plugin.settings.statuses);
       }
       await onRefresh();
     });
@@ -208,7 +208,7 @@ export function attachBarMove(
         return;
       }
       if (plugin.settings.autoSchedule) {
-        await plugin.store.scheduleAfterChange(project, drag.dragTask.id);
+        await plugin.store.scheduleAfterChange(project, drag.dragTask.id, plugin.settings.statuses);
       }
       await onRefresh();
     });

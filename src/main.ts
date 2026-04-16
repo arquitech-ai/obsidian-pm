@@ -16,7 +16,7 @@ export default class PMPlugin extends Plugin {
 
   async onload(): Promise<void> {
     await this.loadSettings();
-    this.store = new ProjectStore(this.app);
+    this.store = new ProjectStore(this.app, () => this.settings.statuses);
     this.notifier = new Notifier(this);
 
     // Register the custom view

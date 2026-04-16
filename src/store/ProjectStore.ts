@@ -1,5 +1,5 @@
 import { App, Notice, TFile, TFolder, normalizePath } from 'obsidian';
-import type { Project, Task } from '../types';
+import type { Project, Task, StatusConfig } from '../types';
 import { makeProject, makeTask } from '../types';
 import {
   updateTaskInTree,
@@ -27,7 +27,7 @@ export class ProjectStore {
   /** Per-project promise chains to serialize concurrent saves */
   private saveQueues = new Map<string, Promise<void>>();
 
-  constructor(private app: App) {}
+  constructor(private app: App, private getStatuses: () => StatusConfig[] = () => []) {}
 
   // ─── Folder helpers ────────────────────────────────────────────────────────
 
@@ -194,7 +194,7 @@ export class ProjectStore {
 
       await this.saveAllTasks(project.tasks, project, null, taskFolder);
 
-      const content = serializeProject(project);
+      const content = serializeProject(project, this.getStatuses());
       const file = this.app.vault.getAbstractFileByPath(project.filePath);
       if (file instanceof TFile) {
         await this.app.vault.modify(file, content);
@@ -237,7 +237,7 @@ export class ProjectStore {
 
     try {
       // Write new file first, then delete old — prevents data loss if interrupted
-      const content = serializeTask(task, project, parentTask);
+      const content = serializeTask(task, project, parentTask, this.getStatuses());
       const existing = this.app.vault.getAbstractFileByPath(filePath);
       if (existing instanceof TFile) {
         await this.app.vault.modify(existing, content);
@@ -375,8 +375,8 @@ export class ProjectStore {
    * Applies computed date patches and saves.
    * Returns the number of tasks that were adjusted.
    */
-  async scheduleAfterChange(project: Project, changedTaskId?: string): Promise<number> {
-    const { patches } = computeSchedule(project.tasks, changedTaskId);
+  async scheduleAfterChange(project: Project, changedTaskId?: string, statuses: StatusConfig[] = []): Promise<number> {
+    const { patches } = computeSchedule(project.tasks, changedTaskId, statuses);
     if (patches.length === 0) return 0;
 
     for (const p of patches) {

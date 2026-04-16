@@ -135,7 +135,7 @@ export class TableView implements SubView {
           await this.plugin.store.updateTasks(this.project, ids, { due: action.due });
           if (this.plugin.settings.autoSchedule) {
             for (const id of ids) {
-              await this.plugin.store.scheduleAfterChange(this.project, id);
+              await this.plugin.store.scheduleAfterChange(this.project, id, this.plugin.settings.statuses);
             }
           }
           break;
