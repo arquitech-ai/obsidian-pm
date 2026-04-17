@@ -425,31 +425,6 @@
 .pm-table-th-sortable { cursor: pointer; }
 .pm-table-th-sortable:hover { color: var(--pm-text); }
 
-.pm-table-th-resizable { position: relative; }
-.pm-col-resize-handle {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 5px;
-  cursor: col-resize;
-  z-index: 11;
-  opacity: 0;
-  background: var(--interactive-accent, #7c3aed);
-  transition: opacity 0.15s ease;
-}
-.pm-table-th-resizable:hover .pm-col-resize-handle,
-.pm-col-resize-handle:hover {
-  opacity: 0.5;
-}
-.pm-col-resize-handle:active {
-  opacity: 1;
-}
-.pm-table-resizing {
-  cursor: col-resize;
-  user-select: none;
-}
-
 .pm-table-row {
   border-bottom: 1px solid var(--pm-border);
   transition: background 0.1s;
