@@ -54,15 +54,15 @@ export function renderTable(ctx: TableContext): void {
   });
 
   const cw = ctx.plugin.settings.tableColumnWidths;
-  const cols: { key: SortKey | null; label: string; widthKey?: string; width?: string }[] = [
-    { key: null,        label: '',          width: '32px'  },
-    { key: 'title',     label: 'Task',      widthKey: 'title'     },
-    { key: 'status',    label: 'Status',    widthKey: 'status'    },
-    { key: 'priority',  label: 'Priority',  widthKey: 'priority'  },
-    { key: 'assignees', label: 'Assignees', widthKey: 'assignees' },
-    { key: 'due',       label: 'Due',       widthKey: 'due'       },
-    { key: 'progress',  label: 'Progress',  widthKey: 'progress'  },
-    { key: null,        label: 'Time',      widthKey: 'time'      },
+  const cols: { key: SortKey | null; label: string; widthKey?: string; width?: string; resizable: boolean }[] = [
+    { key: null,        label: '',          width: '32px',  resizable: false },
+    { key: 'title',     label: 'Task',      widthKey: 'title',     resizable: true  },
+    { key: 'status',    label: 'Status',    widthKey: 'status',    resizable: true  },
+    { key: 'priority',  label: 'Priority',  widthKey: 'priority',  resizable: true  },
+    { key: 'assignees', label: 'Assignees', widthKey: 'assignees', resizable: true  },
+    { key: 'due',       label: 'Due',       widthKey: 'due',       resizable: true  },
+    { key: 'progress',  label: 'Progress',  widthKey: 'progress',  resizable: true  },
+    { key: null,        label: 'Time',      widthKey: 'time',      resizable: true  },
   ];
   for (const col of cols) {
     const th = hrow.createEl('th');
@@ -91,11 +91,19 @@ export function renderTable(ctx: TableContext): void {
     } else {
       th.setText(col.label);
     }
+    if (col.resizable && col.widthKey) {
+      th.addClass('pm-table-th-resizable');
+      addResizeHandle(th, col.widthKey, col.widthKey === 'title' ? 180 : 60, table, ctx);
+    }
   }
 
   for (const cf of ctx.project.customFields) {
     const th = hrow.createEl('th', { text: cf.name });
-    th.setCssStyles({ width: '120px' });
+    const cfKey = `cf_${cf.id}`;
+    const cfWidth = cw[cfKey] ? `${cw[cfKey]}px` : '120px';
+    th.setCssStyles({ width: cfWidth });
+    th.addClass('pm-table-th-resizable');
+    addResizeHandle(th, cfKey, 60, table, ctx);
   }
 
   // Actions column header (must be last)
@@ -256,4 +264,39 @@ export function getVisibleTaskIds(state: TableState): string[] {
 async function deleteTask(id: string, ctx: TableContext): Promise<void> {
   await ctx.plugin.store.deleteTask(ctx.project, id);
   await ctx.onRefresh();
+}
+
+function addResizeHandle(
+  th: HTMLElement,
+  widthKey: string,
+  minWidth: number,
+  table: HTMLElement,
+  ctx: TableContext,
+): void {
+  const handle = th.createDiv('pm-col-resize-handle');
+  handle.addEventListener('mousedown', (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startWidth = th.offsetWidth;
+    table.addClass('pm-table-resizing');
+
+    const onMouseMove = (ev: MouseEvent) => {
+      const newWidth = Math.max(minWidth, startWidth + ev.clientX - startX);
+      th.setCssStyles({ width: `${newWidth}px` });
+    };
+
+    const onMouseUp = (ev: MouseEvent) => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      table.removeClass('pm-table-resizing');
+      const finalWidth = Math.max(minWidth, startWidth + ev.clientX - startX);
+      th.setCssStyles({ width: `${finalWidth}px` });
+      ctx.plugin.settings.tableColumnWidths[widthKey] = finalWidth;
+      void ctx.plugin.saveSettings();
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  });
 }
