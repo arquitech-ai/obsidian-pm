@@ -118,12 +118,35 @@ export class TaskModal extends Modal {
 
     let descComp = new Component();
     descComp.load();
-    const renderPreview = () => {
+
+    const toggleCheckbox = (index: number) => {
+      let count = 0;
+      this.task.description = this.task.description.replace(
+        /^([ \t]*[-*+] \[)([ x])(\])/gm,
+        (match, pre, state, post) => {
+          if (count++ === index) return pre + (state === ' ' ? 'x' : ' ') + post;
+          return match;
+        },
+      );
+      descArea.value = this.task.description;
+      void renderPreview();
+    };
+
+    const attachCheckboxListeners = () => {
+      descPreview.querySelectorAll('input[type="checkbox"]').forEach((el, i) => {
+        const cb = el as HTMLInputElement;
+        cb.removeAttribute('disabled');
+        cb.addEventListener('click', (e) => { e.preventDefault(); toggleCheckbox(i); });
+      });
+    };
+
+    const renderPreview = async () => {
       descComp.unload();
       descComp = new Component();
       descComp.load();
       descPreview.empty();
-      void MarkdownRenderer.render(this.app, this.task.description, descPreview, sourcePath, descComp);
+      await MarkdownRenderer.render(this.app, this.task.description, descPreview, sourcePath, descComp);
+      attachCheckboxListeners();
     };
 
     const showEdit = () => {
@@ -135,7 +158,7 @@ export class TaskModal extends Modal {
 
     const showPreview = () => {
       if (!hasContent()) return;
-      renderPreview();
+      void renderPreview();
       descArea.classList.add('pm-hidden');
       descPreview.classList.remove('pm-hidden');
     };
@@ -156,6 +179,8 @@ export class TaskModal extends Modal {
 
     descPreview.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
+      if (target instanceof HTMLInputElement && target.type === 'checkbox') return;
+
       const link = target.closest('a');
 
       if (link) {
@@ -180,7 +205,7 @@ export class TaskModal extends Modal {
 
     if (hasContent()) {
       descArea.classList.add('pm-hidden');
-      renderPreview();
+      void renderPreview();
     } else {
       descPreview.classList.add('pm-hidden');
       setTimeout(autoResize, 0);
