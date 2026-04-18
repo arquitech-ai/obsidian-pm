@@ -13,6 +13,17 @@ export default class PMPlugin extends Plugin {
   settings: PMSettings = { ...DEFAULT_SETTINGS };
   store!: ProjectStore;
   notifier!: Notifier;
+  undoStack: Array<{ undo: () => Promise<void> }> = [];
+
+  pushUndo(entry: { undo: () => Promise<void> }): void {
+    this.undoStack.push(entry);
+    if (this.undoStack.length > 20) this.undoStack.shift();
+  }
+
+  async undoLastAction(): Promise<void> {
+    const entry = this.undoStack.pop();
+    if (entry) await entry.undo();
+  }
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -73,6 +84,12 @@ export default class PMPlugin extends Plugin {
       id: 'new-subtask',
       name: 'Create new subtask',
       callback: () => { void this.pickProjectThenCreateTask('pick-parent'); },
+    });
+
+    this.addCommand({
+      id: 'undo-last-action',
+      name: 'Undo last action',
+      callback: () => { void this.undoLastAction(); },
     });
 
     this.addCommand({

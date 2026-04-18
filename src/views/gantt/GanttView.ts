@@ -166,10 +166,14 @@ export class GanttView implements SubView {
     });
     svgContainer.appendChild(this.svgEl);
 
-    // Escape to cancel linking mode
+    // Escape to cancel linking mode; Ctrl/Cmd+Z to undo last drag
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && this.link.active) {
         cancelLink(this.link);
+      }
+      if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey && !this.drag.isDragging) {
+        e.preventDefault();
+        void this.plugin.undoLastAction();
       }
     };
     document.addEventListener('keydown', onKeyDown);

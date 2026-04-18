@@ -94,6 +94,10 @@ export function attachDragHandle(
       const snappedX = snapX(finalX, snapPoints, snapThreshold);
       const snappedRight = snapX(finalX + finalW, snapPoints, snapThreshold);
 
+      const taskId = drag.dragTask.id;
+      const oldStart = drag.dragTask.start;
+      const oldDue = drag.dragTask.due;
+
       const patch: Partial<Task> = {};
       if (drag.dragSide === 'left') {
         patch.start = dateToIso(xToDate(cfg, snappedX));
@@ -103,7 +107,7 @@ export function attachDragHandle(
         patch.due = dateToIso(endD);
       }
       try {
-        await plugin.store.updateTask(project, drag.dragTask.id, patch);
+        await plugin.store.updateTask(project, taskId, patch);
       } catch (err) {
         drag.dragBarEl.setAttribute('x', String(drag.dragInitialX));
         drag.dragBarEl.setAttribute('width', String(drag.dragInitialW));
@@ -112,6 +116,15 @@ export function attachDragHandle(
         console.error('GanttDragHandler: save failed', err);
         return;
       }
+      plugin.pushUndo({
+        undo: async () => {
+          await plugin.store.updateTask(project, taskId, { start: oldStart, due: oldDue });
+          if (plugin.settings.autoSchedule) {
+            new Notice('Dates reverted. Dependent task dates may need adjustment.');
+          }
+          await onRefresh();
+        },
+      });
       if (plugin.settings.autoSchedule) {
         await plugin.store.scheduleAfterChange(project, drag.dragTask.id, plugin.settings.statuses);
       }
@@ -188,6 +201,10 @@ export function attachBarMove(
         return;
       }
 
+      const taskId = drag.dragTask.id;
+      const oldStart = drag.dragTask.start;
+      const oldDue = drag.dragTask.due;
+
       const snappedX = snapX(lastSnappedX, snapPoints, snapThreshold);
       const snappedRight = snapX(snappedX + drag.dragInitialW, snapPoints, snapThreshold);
 
@@ -200,13 +217,22 @@ export function attachBarMove(
         due: dateToIso(newEnd),
       };
       try {
-        await plugin.store.updateTask(project, drag.dragTask.id, patch);
+        await plugin.store.updateTask(project, taskId, patch);
       } catch (err) {
         barGroup.removeAttribute('transform');
         new Notice('Failed to save date change. Please try again.');
         console.error('GanttDragHandler: move save failed', err);
         return;
       }
+      plugin.pushUndo({
+        undo: async () => {
+          await plugin.store.updateTask(project, taskId, { start: oldStart, due: oldDue });
+          if (plugin.settings.autoSchedule) {
+            new Notice('Dates reverted. Dependent task dates may need adjustment.');
+          }
+          await onRefresh();
+        },
+      });
       if (plugin.settings.autoSchedule) {
         await plugin.store.scheduleAfterChange(project, drag.dragTask.id, plugin.settings.statuses);
       }
