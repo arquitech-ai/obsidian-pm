@@ -605,6 +605,7 @@
   line-height: 1;
 }
 .pm-tag-rm:hover { color: var(--pm-danger); }
+.pm-suggest-create { color: var(--text-accent); font-style: italic; }
 
 /* Add task row */
 .pm-table-add-row td { padding: 8px 10px; }

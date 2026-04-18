@@ -9,7 +9,7 @@ import { renderPropRow, renderProgressSlider, renderChipList } from '../ui/FormF
 import { COLOR_MUTED } from '../constants';
 import { getStatusConfig, getPriorityConfig, formatBadgeText } from '../utils';
 import { renderCustomFieldInput } from './CustomFieldInputs';
-import { TaskPickerModal } from './PickerModals';
+import { TaskPickerModal, TagPickerModal } from './PickerModals';
 
 export interface TaskFormFieldsContext {
   task: Task;
@@ -217,19 +217,21 @@ export function renderTaskFormFields(container: HTMLElement, ctx: TaskFormFields
   renderPropRow(container, 'Tags', () => {
     const wrap = createDiv('pm-prop-value pm-prop-tags');
     const render = () => {
+      const allProjectTags = [...new Set(
+        flattenTasks(project.tasks).flatMap(f => f.task.tags),
+      )].filter(t => !task.tags.includes(t));
       renderChipList(wrap, task.tags, {
         chipCls: 'pm-tag pm-tag--removable',
         rmCls: 'pm-tag-rm',
         onRemove: (tag) => { task.tags = task.tags.filter(x => x !== tag); render(); },
-        renderAdd: (el) => {
-          const input = el.createEl('input', { type: 'text', cls: 'pm-tag-input', placeholder: '+ tag' });
-          input.addEventListener('keydown', ev => {
-            if (ev.key === 'Enter' && input.value.trim()) {
-              task.tags.push(input.value.trim().toLowerCase().replace(/\s+/g, '-'));
-              render();
-            }
-          });
+        onAdd: () => {
+          new TagPickerModal(
+            plugin.app,
+            allProjectTags,
+            (tag) => { if (!task.tags.includes(tag)) { task.tags.push(tag); render(); } },
+          ).open();
         },
+        addLabel: '+ tag',
       });
     };
     render();
