@@ -3,6 +3,9 @@ import type { Project, ProjectFilterState, ProjectStatus, TaskPriority } from '.
 import { makeDefaultProjectFilter } from '../types';
 import { renderFilterDropdown } from '../ui/FilterDropdown';
 
+// Track whether the search input triggered the last re-render so we can restore focus
+let _pendingSearchFocus = false;
+
 // ─── Static option lists ──────────────────────────────────────────────────────
 
 const STATUS_OPTIONS: { id: ProjectStatus; label: string }[] = [
@@ -77,11 +80,23 @@ export function renderProjectFilterBar(
     cls: 'pm-filter-input pm-project-filter-search',
   });
   search.value = f.text;
+
+  // Restore focus if search triggered the last re-render (prevents losing focus on each keystroke)
+  if (_pendingSearchFocus) {
+    _pendingSearchFocus = false;
+    requestAnimationFrame(() => {
+      search.focus();
+      const len = search.value.length;
+      search.setSelectionRange(len, len);
+    });
+  }
+
   let debounce: number | null = null;
   search.addEventListener('input', () => {
     if (debounce !== null) window.clearTimeout(debounce);
     debounce = window.setTimeout(() => {
       plugin.settings.projectFilterState.text = search.value;
+      _pendingSearchFocus = true;
       onChange();
     }, 120);
   });

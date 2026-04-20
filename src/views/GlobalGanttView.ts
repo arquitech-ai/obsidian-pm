@@ -101,14 +101,19 @@ export class GlobalGanttView implements SubView {
     bar.createEl('span', { cls: 'pm-gantt-sep' });
 
     // Global expand / collapse buttons
-    const expandBtn = bar.createEl('button', { text: 'Expand all', cls: 'pm-btn pm-btn-ghost pm-gantt-expand-btn' });
+    const allCollapsed = this.projects.length > 0 && this.projects.every(p => this.collapsedProjects.has(p.id));
+    const allExpanded  = this.collapsedProjects.size === 0;
+
+    const expandBtn = bar.createEl('button', { text: 'Expand all', cls: 'pm-gantt-zoom-btn' });
+    if (allExpanded) expandBtn.addClass('pm-gantt-zoom-btn--active');
     expandBtn.addEventListener('click', () => {
       this.collapsedProjects.clear();
       this.setAllTasksCollapsed(false);
       this.render();
     });
 
-    const collapseBtn = bar.createEl('button', { text: 'Collapse all', cls: 'pm-btn pm-btn-ghost pm-gantt-expand-btn' });
+    const collapseBtn = bar.createEl('button', { text: 'Collapse all', cls: 'pm-gantt-zoom-btn' });
+    if (allCollapsed) collapseBtn.addClass('pm-gantt-zoom-btn--active');
     collapseBtn.addEventListener('click', () => {
       for (const p of this.projects) this.collapsedProjects.add(p.id);
       this.render();
