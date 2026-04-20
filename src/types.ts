@@ -8,6 +8,7 @@ export type ViewMode = 'table' | 'gantt' | 'kanban';
 export type GlobalViewMode = 'cards' | 'table' | 'kanban' | 'gantt';
 export type DueDateFilter = 'any' | 'overdue' | 'this-week' | 'this-month' | 'no-date';
 export type TaskType = 'task' | 'milestone' | 'subtask';
+export type ProjectStatus = 'active' | 'on-hold' | 'completed' | 'cancelled' | 'draft';
 
 export interface Recurrence {
   interval: 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -58,15 +59,28 @@ export interface Project {
   id: string;
   title: string;
   description: string;
-  color: string;   // hex
-  icon: string;    // emoji
+  color: string;        // hex — card accent color
+  icon: string;         // emoji
   tasks: Task[];
   customFields: CustomFieldDef[];
   teamMembers: string[];
   createdAt: string;
   updatedAt: string;
-  filePath: string; // resolved vault path
+  filePath: string;     // resolved vault path
   savedViews: SavedView[];
+
+  // ── Project metadata ──────────────────────────────────────────────────────
+  status?: ProjectStatus;
+  startDate?: string;   // YYYY-MM-DD — if unset, computed from min(task.start)
+  endDate?: string;     // YYYY-MM-DD — if unset, computed from max(task.due)
+  client?: string;      // billing / owner entity name
+  group?: string;       // folder label in card view (e.g. "Internal", "Client X")
+  owner?: string;       // accountable person (from teamMembers or global)
+  priority?: TaskPriority;
+  budget?: number;      // total budget in currency units
+  hourlyRate?: number;  // default billing rate
+  currency?: string;    // ISO 4217, e.g. "EUR"; falls back to settings.defaultCurrency
+  sortOrder?: number;   // position within its group in the card view
 }
 
 export interface FilterState {
@@ -115,6 +129,9 @@ export interface PMSettings {
   autoSchedule: boolean;
   ganttHideDone: boolean;
   kanbanShowSubtasks: boolean;
+  defaultCurrency: string;                // ISO 4217, e.g. "EUR"
+  groupColors: Record<string, string>;    // group label → hex color
+  collapsedGroups: string[];              // group labels that are currently collapsed
 }
 
 // ─── Defaults ────────────────────────────────────────────────────────────────
@@ -148,6 +165,9 @@ export const DEFAULT_SETTINGS: PMSettings = {
   notificationsEnabled: true,
   notificationLeadDays: 2,
   autoSchedule: true,
+  defaultCurrency: 'EUR',
+  groupColors: {},
+  collapsedGroups: [],
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

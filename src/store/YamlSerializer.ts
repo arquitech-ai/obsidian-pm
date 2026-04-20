@@ -21,6 +21,18 @@ export function serializeProject(project: Project, statuses: StatusConfig[] = []
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
   };
+  // optional project metadata — only write when set
+  if (project.status)                  fm.status       = project.status;
+  if (project.startDate)               fm.startDate    = project.startDate;
+  if (project.endDate)                 fm.endDate      = project.endDate;
+  if (project.client)                  fm.client       = project.client;
+  if (project.group)                   fm.group        = project.group;
+  if (project.owner)                   fm.owner        = project.owner;
+  if (project.priority)                fm.priority     = project.priority;
+  if (project.budget !== undefined)    fm.budget       = project.budget;
+  if (project.hourlyRate !== undefined) fm.hourlyRate  = project.hourlyRate;
+  if (project.currency)                fm.currency     = project.currency;
+  if (project.sortOrder !== undefined) fm.sortOrder    = project.sortOrder;
 
   const yamlLines: string[] = ['---'];
   appendYaml(yamlLines, fm, 0);

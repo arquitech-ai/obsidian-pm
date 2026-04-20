@@ -144,6 +144,41 @@ export class PMSettingTab extends PluginSettingTab {
           this.renderMembersList(membersContainer);
         }));
 
+    // ── Projects ──────────────────────────────────────────────────────────────
+    new Setting(containerEl).setName('Projects').setHeading();
+
+    new Setting(containerEl)
+      .setName('Default currency')
+      // eslint-disable-next-line obsidianmd/ui/sentence-case
+      .setDesc('Currency code for project budgets (e.g. EUR, USD, GBP).')
+      .addText(text => text
+        .setPlaceholder('EUR')
+        .setValue(this.plugin.settings.defaultCurrency ?? 'EUR')
+        .onChange(async v => {
+          this.plugin.settings.defaultCurrency = v.trim().toUpperCase() || 'EUR';
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Project groups')
+      .setDesc('Groups organise projects in the card view. Set a color per group.');
+
+    const groupsContainer = containerEl.createDiv('pm-settings-groups');
+    this.renderGroupsList(groupsContainer);
+
+    new Setting(containerEl)
+      .addButton(btn => btn
+        .setButtonText('+ add group')
+        .setCta()
+        .onClick(() => {
+          const name = 'New Group';
+          if (!this.plugin.settings.groupColors[name]) {
+            this.plugin.settings.groupColors[name] = '#8b72be';
+          }
+          void this.plugin.saveSettings();
+          this.renderGroupsList(groupsContainer);
+        }));
+
     // ── Statuses ──────────────────────────────────────────────────────────────
     new Setting(containerEl).setName('Statuses').setHeading();
     containerEl.createEl('p', {
@@ -170,6 +205,40 @@ export class PMSettingTab extends PluginSettingTab {
           void this.plugin.saveSettings();
           this.renderStatusList(statusContainer);
         }));
+  }
+
+  private renderGroupsList(container: HTMLElement): void {
+    container.empty();
+    const groups = this.plugin.settings.groupColors ?? {};
+    for (const name of Object.keys(groups)) {
+      const row = container.createDiv('pm-settings-group-row');
+
+      const nameInput = row.createEl('input', { type: 'text', value: name, cls: 'pm-settings-group-name' });
+      nameInput.placeholder = 'Group name';
+      nameInput.addEventListener('change', () => {
+        const newName = nameInput.value.trim();
+        if (!newName || newName === name) return;
+        const color = groups[name];
+        delete this.plugin.settings.groupColors[name];
+        this.plugin.settings.groupColors[newName] = color;
+        void this.plugin.saveSettings();
+        this.renderGroupsList(container);
+      });
+
+      const colorInput = row.createEl('input', { type: 'color', cls: 'pm-settings-group-color' });
+      colorInput.value = groups[name];
+      colorInput.addEventListener('change', () => {
+        this.plugin.settings.groupColors[name] = colorInput.value;
+        void this.plugin.saveSettings();
+      });
+
+      const del = row.createEl('button', { text: '✕', cls: 'pm-settings-del' });
+      del.addEventListener('click', () => {
+        delete this.plugin.settings.groupColors[name];
+        void this.plugin.saveSettings();
+        this.renderGroupsList(container);
+      });
+    }
   }
 
   private renderMembersList(container: HTMLElement): void {

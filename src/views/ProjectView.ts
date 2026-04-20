@@ -185,11 +185,17 @@ export class ProjectView extends ItemView {
       } });
     });
 
-    this.titleEl2 = left.createEl('h2', { text: this.project.title, cls: 'pm-toolbar-title' });
+    this.titleEl2 = left.createEl('h2', {
+      text: this.project.title,
+      cls: 'pm-toolbar-title pm-toolbar-title--project',
+      attr: { title: this.project.title },
+    });
     this.titleEl2.contentEditable = 'true';
     this.titleEl2.addEventListener('blur', safeAsync(async () => {
       if (!this.project) return;
-      this.project.title = this.titleEl2.textContent?.trim() ?? this.project.title;
+      const newTitle = this.titleEl2.textContent?.trim() ?? this.project.title;
+      this.project.title = newTitle;
+      this.titleEl2.setAttribute('title', newTitle);
       await this.plugin.store.saveProject(this.project);
     }));
 

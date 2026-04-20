@@ -1,6 +1,6 @@
 import { App, Modal } from 'obsidian';
 import type PMPlugin from '../main';
-import { Project, CustomFieldDef, makeId, makeProject } from '../types';
+import { Project, CustomFieldDef, ProjectStatus, TaskPriority, makeId, makeProject } from '../types';
 import { stringToColor, safeAsync } from '../utils';
 import { COLOR_DANGER } from '../constants';
 
@@ -11,6 +11,14 @@ const PROJECT_COLORS = [
 ];
 
 const PROJECT_ICONS = ['📋', '🚀', '💡', '🎯', '🔬', '🏗', '📊', '🎨', '📱', '🛠', '📝', '⚡'];
+
+const PROJECT_STATUSES: { value: ProjectStatus; label: string; color: string }[] = [
+  { value: 'active',    label: 'Active',    color: '#79b58d' },
+  { value: 'draft',     label: 'Draft',     color: '#8a94a0' },
+  { value: 'on-hold',   label: 'On Hold',   color: '#b8a06b' },
+  { value: 'completed', label: 'Completed', color: '#6ba8a0' },
+  { value: 'cancelled', label: 'Cancelled', color: '#767491' },
+];
 
 /**
  * Project create/edit modal.
@@ -116,6 +124,135 @@ export class ProjectModal extends Modal {
         s.removeClass('pm-color-swatch--selected'));
     });
 
+    // ── Status + Priority row ─────────────────────────────────────────────────
+    const statusRow = el.createDiv('pm-project-modal-section pm-project-row');
+
+    const statusWrap = statusRow.createDiv('pm-project-field-wrap');
+    statusWrap.createEl('label', { text: 'Status', cls: 'pm-label' });
+    const statusSelect = statusWrap.createEl('select', { cls: 'pm-input pm-select' });
+    const noStatusOpt = statusSelect.createEl('option', { value: '', text: '— none —' });
+    noStatusOpt.selected = !this.project.status;
+    for (const s of PROJECT_STATUSES) {
+      const opt = statusSelect.createEl('option', { value: s.value, text: s.label });
+      if (s.value === this.project.status) opt.selected = true;
+    }
+    statusSelect.addEventListener('change', () => {
+      this.project.status = (statusSelect.value as ProjectStatus) || undefined;
+    });
+
+    const priorityWrap = statusRow.createDiv('pm-project-field-wrap');
+    priorityWrap.createEl('label', { text: 'Priority', cls: 'pm-label' });
+    const prioritySelect = priorityWrap.createEl('select', { cls: 'pm-input pm-select' });
+    const noPriorityOpt = prioritySelect.createEl('option', { value: '', text: '— none —' });
+    noPriorityOpt.selected = !this.project.priority;
+    for (const [val, label] of [['critical','Critical'],['high','High'],['medium','Medium'],['low','Low']] as [TaskPriority,string][]) {
+      const opt = prioritySelect.createEl('option', { value: val, text: label });
+      if (val === this.project.priority) opt.selected = true;
+    }
+    prioritySelect.addEventListener('change', () => {
+      this.project.priority = (prioritySelect.value as TaskPriority) || undefined;
+    });
+
+    // ── Group + Client row ────────────────────────────────────────────────────
+    const groupRow = el.createDiv('pm-project-modal-section pm-project-row');
+
+    const groupWrap = groupRow.createDiv('pm-project-field-wrap');
+    groupWrap.createEl('label', { text: 'Group / folder', cls: 'pm-label' });
+    const groupInput = groupWrap.createEl('input', {
+      type: 'text', value: this.project.group ?? '', cls: 'pm-input',
+    });
+    groupInput.placeholder = 'e.g. internal, acme corp'; // eslint-disable-line obsidianmd/ui/sentence-case
+    // Datalist from existing group names
+    const groupDatalist = groupWrap.createEl('datalist', { attr: { id: 'pm-group-list' } });
+    groupInput.setAttribute('list', 'pm-group-list');
+    const existingGroups = new Set(
+      Object.keys(this.plugin.settings.groupColors)
+    );
+    for (const g of existingGroups) {
+      groupDatalist.createEl('option', { value: g });
+    }
+    groupInput.addEventListener('input', () => { this.project.group = groupInput.value.trim() || undefined; });
+
+    const clientWrap = groupRow.createDiv('pm-project-field-wrap');
+    clientWrap.createEl('label', { text: 'Client', cls: 'pm-label' });
+    const clientInput = clientWrap.createEl('input', {
+      type: 'text', value: this.project.client ?? '', cls: 'pm-input',
+    });
+    clientInput.placeholder = 'Client or organisation name';  // intentional lowercase — not a heading
+    clientInput.addEventListener('input', () => { this.project.client = clientInput.value.trim() || undefined; });
+
+    // ── Owner ─────────────────────────────────────────────────────────────────
+    const ownerSection = el.createDiv('pm-project-modal-section');
+    ownerSection.createEl('label', { text: 'Owner', cls: 'pm-label' });
+    const ownerInput = ownerSection.createEl('input', {
+      type: 'text', value: this.project.owner ?? '', cls: 'pm-input',
+    });
+    ownerInput.placeholder = 'Accountable person';
+    const ownerDatalist = ownerSection.createEl('datalist', { attr: { id: 'pm-owner-list' } });
+    ownerInput.setAttribute('list', 'pm-owner-list');
+    const allMembers = [...(this.plugin.settings.globalTeamMembers ?? []), ...(this.project.teamMembers ?? [])];
+    for (const m of [...new Set(allMembers)]) {
+      ownerDatalist.createEl('option', { value: m });
+    }
+    ownerInput.addEventListener('input', () => { this.project.owner = ownerInput.value.trim() || undefined; });
+
+    // ── Dates row ─────────────────────────────────────────────────────────────
+    const datesRow = el.createDiv('pm-project-modal-section pm-project-row');
+
+    const startWrap = datesRow.createDiv('pm-project-field-wrap');
+    startWrap.createEl('label', { text: 'Start date', cls: 'pm-label' });
+    const startInput = startWrap.createEl('input', {
+      type: 'date', value: this.project.startDate ?? '', cls: 'pm-input',
+    });
+    startWrap.createEl('span', { text: 'Leave blank to auto-calculate', cls: 'pm-label-hint' });
+    startInput.addEventListener('change', () => { this.project.startDate = startInput.value || undefined; });
+
+    const endWrap = datesRow.createDiv('pm-project-field-wrap');
+    endWrap.createEl('label', { text: 'End date', cls: 'pm-label' });
+    const endInput = endWrap.createEl('input', {
+      type: 'date', value: this.project.endDate ?? '', cls: 'pm-input',
+    });
+    endWrap.createEl('span', { text: 'Leave blank to auto-calculate', cls: 'pm-label-hint' });
+    endInput.addEventListener('change', () => { this.project.endDate = endInput.value || undefined; });
+
+    // ── Budget row ────────────────────────────────────────────────────────────
+    const budgetRow = el.createDiv('pm-project-modal-section pm-project-row');
+
+    const budgetWrap = budgetRow.createDiv('pm-project-field-wrap');
+    budgetWrap.createEl('label', { text: 'Budget', cls: 'pm-label' });
+    const budgetInput = budgetWrap.createEl('input', {
+      type: 'number', cls: 'pm-input',
+      attr: { min: '0', step: '1', placeholder: '0' },
+    });
+    if (this.project.budget !== undefined) budgetInput.value = String(this.project.budget);
+    budgetInput.addEventListener('input', () => {
+      const v = parseFloat(budgetInput.value);
+      this.project.budget = isNaN(v) ? undefined : v;
+    });
+
+    const rateWrap = budgetRow.createDiv('pm-project-field-wrap');
+    rateWrap.createEl('label', { text: 'Hourly rate', cls: 'pm-label' });
+    const rateInput = rateWrap.createEl('input', {
+      type: 'number', cls: 'pm-input',
+      attr: { min: '0', step: '0.01', placeholder: '0.00' },
+    });
+    if (this.project.hourlyRate !== undefined) rateInput.value = String(this.project.hourlyRate);
+    rateInput.addEventListener('input', () => {
+      const v = parseFloat(rateInput.value);
+      this.project.hourlyRate = isNaN(v) ? undefined : v;
+    });
+
+    const currencyWrap = budgetRow.createDiv('pm-project-field-wrap pm-project-field-wrap--sm');
+    currencyWrap.createEl('label', { text: 'Currency', cls: 'pm-label' });
+    const currencyInput = currencyWrap.createEl('input', {
+      type: 'text', cls: 'pm-input',
+      attr: { maxlength: '3', placeholder: this.plugin.settings.defaultCurrency || 'EUR' },
+    });
+    if (this.project.currency) currencyInput.value = this.project.currency;
+    currencyInput.addEventListener('input', () => {
+      this.project.currency = currencyInput.value.trim().toUpperCase() || undefined;
+    });
+
     // ── Description ───────────────────────────────────────────────────────────
     const descSection = el.createDiv('pm-project-modal-section');
     descSection.createEl('label', { text: 'Description', cls: 'pm-label' });
@@ -207,6 +344,13 @@ export class ProjectModal extends Modal {
         await this.plugin.store.ensureFolder(this.plugin.settings.projectsFolder);
       }
 
+      // persist new group color if this is a new group name
+      const groupName = this.project.group;
+      if (groupName && !this.plugin.settings.groupColors[groupName]) {
+        this.plugin.settings.groupColors[groupName] = this.project.color;
+        await this.plugin.saveSettings();
+      }
+
       await this.plugin.store.saveProject(this.project);
       await this.onSave(this.project);
       this.close();
@@ -260,4 +404,9 @@ export class ProjectModal extends Modal {
       renderOpts();
     }
   }
+}
+
+/** Status badge color helper — exported for card rendering */
+export function projectStatusColor(status: string): string {
+  return PROJECT_STATUSES.find(s => s.value === status)?.color ?? '#8a94a0';
 }

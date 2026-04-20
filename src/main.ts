@@ -115,6 +115,10 @@ export default class PMPlugin extends Plugin {
     // Merge nested arrays carefully
     if (!saved?.statuses?.length) this.settings.statuses = DEFAULT_SETTINGS.statuses;
     if (!saved?.priorities?.length) this.settings.priorities = DEFAULT_SETTINGS.priorities;
+    // Migrate: ensure new settings fields exist for older saved data
+    if (!this.settings.defaultCurrency) this.settings.defaultCurrency = DEFAULT_SETTINGS.defaultCurrency;
+    if (!this.settings.groupColors)    this.settings.groupColors    = {};
+    if (!this.settings.collapsedGroups) this.settings.collapsedGroups = [];
 
     // Migrate pre-v1.3 statuses: add `complete` flag if missing
     let migrated = false;
