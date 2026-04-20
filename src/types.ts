@@ -127,6 +127,26 @@ export interface PriorityConfig {
   icon: string;
 }
 
+export interface GroupConfig {
+  id: string;
+  name: string;
+  color: string;        // hex — used in card view dot + badge
+  icon: string;         // emoji
+  description: string;
+  lead: string;         // accountable person (from team members or free text)
+}
+
+export interface ClientConfig {
+  id: string;
+  name: string;
+  color: string;        // hex — accent color for client badge
+  icon: string;         // emoji
+  contactName: string;
+  contactEmail: string;
+  website: string;
+  notes: string;
+}
+
 export interface PMSettings {
   projectsFolder: string;
   defaultView: ViewMode;
@@ -141,11 +161,13 @@ export interface PMSettings {
   ganttHideDone: boolean;
   kanbanShowSubtasks: boolean;
   defaultCurrency: string;                // ISO 4217, e.g. "EUR"
-  groupColors: Record<string, string>;    // group label → hex color
+  groupColors: Record<string, string>;    // legacy: group label → hex color (kept for migration)
   collapsedGroups: string[];              // group labels that are currently collapsed
   globalTableMode: 'tasks' | 'projects'; // table view default mode
   globalTableProjectColumns: ProjectTableColumn[]; // visible columns in project table
   projectFilterState: ProjectFilterState; // persisted project filter across views
+  groups: GroupConfig[];                  // managed portfolio groups
+  clients: ClientConfig[];               // managed clients
 }
 
 // ─── Defaults ────────────────────────────────────────────────────────────────
@@ -185,6 +207,8 @@ export const DEFAULT_SETTINGS: PMSettings = {
   globalTableMode: 'projects',
   globalTableProjectColumns: ['status', 'group', 'client', 'owner', 'priority', 'startDate', 'endDate', 'budget', 'progress', 'tasks'],
   projectFilterState: { text: '', statuses: [], groups: [], owners: [], priorities: [] },
+  groups: [],
+  clients: [],
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -249,4 +273,12 @@ export function makeDefaultFilter(): FilterState {
 
 export function makeDefaultProjectFilter(): ProjectFilterState {
   return { text: '', statuses: [], groups: [], owners: [], priorities: [] };
+}
+
+export function makeGroupConfig(name = ''): GroupConfig {
+  return { id: makeId(), name, color: '#8b72be', icon: '📁', description: '', lead: '' };
+}
+
+export function makeClientConfig(name = ''): ClientConfig {
+  return { id: makeId(), name, color: '#6ba8a0', icon: '🏢', contactName: '', contactEmail: '', website: '', notes: '' };
 }

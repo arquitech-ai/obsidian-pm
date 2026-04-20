@@ -4,6 +4,7 @@ import type { Project, Task, StatusConfig, GlobalViewMode } from '../types';
 import { safeAsync, isTerminalStatus, resolveProjectDates, computeProjectSpent, fmtNum } from '../utils';
 import { openProjectModal } from '../ui/ModalFactory';
 import { projectStatusColor } from '../modals/ProjectModal';
+import { openGroupClientModal } from '../modals/GroupClientModal';
 import { GlobalTableView } from './GlobalTableView';
 import { GlobalKanbanView } from './GlobalKanbanView';
 import { GlobalGanttView } from './GlobalGanttView';
@@ -48,8 +49,24 @@ export function renderProjectListToolbar(ctx: ProjectListContext): void {
     btn.addEventListener('click', () => ctx.onGlobalViewChange(v.mode));
   }
 
-  // Right: new project
+  // Right: group / client / project actions
   const right = ctx.toolbarEl.createDiv('pm-toolbar-right');
+
+  const groupBtn = right.createEl('button', { text: '+ new group', cls: 'pm-btn pm-btn-ghost pm-btn-sm' });
+  groupBtn.addEventListener('click', () => {
+    // Load all projects at call time so counts are fresh
+    void ctx.plugin.store.loadAllProjects(ctx.plugin.settings.projectsFolder).then(projects => {
+      openGroupClientModal(ctx.plugin, projects, 'groups', () => { void ctx.onRefreshAll(); });
+    });
+  });
+
+  const clientBtn = right.createEl('button', { text: '+ new client', cls: 'pm-btn pm-btn-ghost pm-btn-sm' });
+  clientBtn.addEventListener('click', () => {
+    void ctx.plugin.store.loadAllProjects(ctx.plugin.settings.projectsFolder).then(projects => {
+      openGroupClientModal(ctx.plugin, projects, 'clients', () => { void ctx.onRefreshAll(); });
+    });
+  });
+
   const newBtn = right.createEl('button', { text: '+ new project', cls: 'pm-btn pm-btn-primary' });
   newBtn.addEventListener('click', () => {
     openProjectModal(ctx.plugin, { onSave: async project => {

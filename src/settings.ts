@@ -1,6 +1,7 @@
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import type PMPlugin from './main';
-import { PMSettings, DEFAULT_SETTINGS, makeId } from './types';
+import { PMSettings, DEFAULT_SETTINGS, makeId, makeGroupConfig, makeClientConfig } from './types';
+import type { GroupConfig, ClientConfig } from './types';
 import { flattenTasks } from './store/TaskTreeOps';
 
 export type { PMSettings };
@@ -159,24 +160,48 @@ export class PMSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
+    // ── Groups ────────────────────────────────────────────────────────────────
     new Setting(containerEl)
-      .setName('Project groups')
-      .setDesc('Groups organise projects in the card view. Set a color per group.');
+      .setName('Groups')
+      .setHeading();
+    containerEl.createEl('p', {
+      cls: 'pm-settings-desc',
+      text: 'Groups organise projects in the card view. Each group can have a color, icon, description, and lead.',
+    });
 
-    const groupsContainer = containerEl.createDiv('pm-settings-groups');
-    this.renderGroupsList(groupsContainer);
+    const groupsContainer = containerEl.createDiv('pm-settings-gcm');
+    this.renderGroupsSection(groupsContainer);
 
     new Setting(containerEl)
       .addButton(btn => btn
         .setButtonText('+ add group')
         .setCta()
         .onClick(() => {
-          const name = 'New Group';
-          if (!this.plugin.settings.groupColors[name]) {
-            this.plugin.settings.groupColors[name] = '#8b72be';
-          }
+          this.plugin.settings.groups.push(makeGroupConfig('New Group'));
           void this.plugin.saveSettings();
-          this.renderGroupsList(groupsContainer);
+          this.renderGroupsSection(groupsContainer);
+        }));
+
+    // ── Clients ───────────────────────────────────────────────────────────────
+    new Setting(containerEl)
+      .setName('Clients')
+      .setHeading();
+    containerEl.createEl('p', {
+      cls: 'pm-settings-desc',
+      text: 'Clients track who projects are done for. Each client can have contact details and notes.',
+    });
+
+    const clientsContainer = containerEl.createDiv('pm-settings-gcm');
+    this.renderClientsSection(clientsContainer);
+
+    new Setting(containerEl)
+      .addButton(btn => btn
+        .setButtonText('+ add client')
+        .setCta()
+        .onClick(() => {
+          this.plugin.settings.clients.push(makeClientConfig('New Client'));
+          void this.plugin.saveSettings();
+          this.renderClientsSection(clientsContainer);
         }));
 
     // ── Statuses ──────────────────────────────────────────────────────────────
@@ -207,38 +232,112 @@ export class PMSettingTab extends PluginSettingTab {
         }));
   }
 
-  private renderGroupsList(container: HTMLElement): void {
+  private renderGroupsSection(container: HTMLElement): void {
     container.empty();
-    const groups = this.plugin.settings.groupColors ?? {};
-    for (const name of Object.keys(groups)) {
-      const row = container.createDiv('pm-settings-group-row');
-
-      const nameInput = row.createEl('input', { type: 'text', value: name, cls: 'pm-settings-group-name' });
-      nameInput.placeholder = 'Group name';
-      nameInput.addEventListener('change', () => {
-        const newName = nameInput.value.trim();
-        if (!newName || newName === name) return;
-        const color = groups[name];
-        delete this.plugin.settings.groupColors[name];
-        this.plugin.settings.groupColors[newName] = color;
-        void this.plugin.saveSettings();
-        this.renderGroupsList(container);
-      });
-
-      const colorInput = row.createEl('input', { type: 'color', cls: 'pm-settings-group-color' });
-      colorInput.value = groups[name];
-      colorInput.addEventListener('change', () => {
-        this.plugin.settings.groupColors[name] = colorInput.value;
-        void this.plugin.saveSettings();
-      });
-
-      const del = row.createEl('button', { text: '✕', cls: 'pm-settings-del' });
-      del.addEventListener('click', () => {
-        delete this.plugin.settings.groupColors[name];
-        void this.plugin.saveSettings();
-        this.renderGroupsList(container);
-      });
+    const groups = this.plugin.settings.groups;
+    if (groups.length === 0) {
+      container.createEl('p', { text: 'No groups yet.', cls: 'pm-settings-gcm-empty' });
+      return;
     }
+    for (const group of groups) {
+      this.renderGroupRow(container, group);
+    }
+  }
+
+  private renderGroupRow(container: HTMLElement, group: GroupConfig): void {
+    const row = container.createDiv('pm-settings-gcm-row');
+
+    // Color swatch + name
+    const colorInput = row.createEl('input', { type: 'color', cls: 'pm-settings-gcm-color' });
+    colorInput.value = group.color;
+    colorInput.addEventListener('change', () => {
+      group.color = colorInput.value;
+      this.plugin.settings.groupColors[group.name] = group.color; // keep legacy in sync
+      void this.plugin.saveSettings();
+    });
+
+    const iconInput = row.createEl('input', {
+      type: 'text', cls: 'pm-settings-gcm-icon', value: group.icon,
+      attr: { placeholder: '📁', maxlength: '4' },
+    });
+    iconInput.addEventListener('input', () => { group.icon = iconInput.value.trim() || '📁'; void this.plugin.saveSettings(); });
+
+    const nameInput = row.createEl('input', { type: 'text', value: group.name, cls: 'pm-settings-gcm-name' });
+    nameInput.placeholder = 'Group name';
+    nameInput.addEventListener('change', () => {
+      const newName = nameInput.value.trim();
+      if (!newName) return;
+      // Sync groupColors key
+      if (group.name !== newName) {
+        delete this.plugin.settings.groupColors[group.name];
+        this.plugin.settings.groupColors[newName] = group.color;
+      }
+      group.name = newName;
+      void this.plugin.saveSettings();
+    });
+
+    const descInput = row.createEl('input', { type: 'text', value: group.description, cls: 'pm-settings-gcm-desc' });
+    descInput.placeholder = 'Description (optional)';
+    descInput.addEventListener('input', () => { group.description = descInput.value; void this.plugin.saveSettings(); });
+
+    const leadInput = row.createEl('input', { type: 'text', value: group.lead, cls: 'pm-settings-gcm-lead' });
+    leadInput.placeholder = 'Lead';
+    const ldl = row.createEl('datalist', { attr: { id: `pm-lead-dl-${group.id}` } });
+    leadInput.setAttribute('list', `pm-lead-dl-${group.id}`);
+    for (const m of this.plugin.settings.globalTeamMembers) ldl.createEl('option', { attr: { value: m } });
+    leadInput.addEventListener('input', () => { group.lead = leadInput.value; void this.plugin.saveSettings(); });
+
+    const del = row.createEl('button', { text: '✕', cls: 'pm-settings-del' });
+    del.addEventListener('click', () => {
+      this.plugin.settings.groups = this.plugin.settings.groups.filter(g => g.id !== group.id);
+      void this.plugin.saveSettings();
+      this.renderGroupsSection(container);
+    });
+  }
+
+  private renderClientsSection(container: HTMLElement): void {
+    container.empty();
+    const clients = this.plugin.settings.clients;
+    if (clients.length === 0) {
+      container.createEl('p', { text: 'No clients yet.', cls: 'pm-settings-gcm-empty' });
+      return;
+    }
+    for (const client of clients) {
+      this.renderClientRow(container, client);
+    }
+  }
+
+  private renderClientRow(container: HTMLElement, client: ClientConfig): void {
+    const row = container.createDiv('pm-settings-gcm-row');
+
+    const colorInput = row.createEl('input', { type: 'color', cls: 'pm-settings-gcm-color' });
+    colorInput.value = client.color;
+    colorInput.addEventListener('change', () => { client.color = colorInput.value; void this.plugin.saveSettings(); });
+
+    const iconInput = row.createEl('input', {
+      type: 'text', cls: 'pm-settings-gcm-icon', value: client.icon,
+      attr: { placeholder: '🏢', maxlength: '4' },
+    });
+    iconInput.addEventListener('input', () => { client.icon = iconInput.value.trim() || '🏢'; void this.plugin.saveSettings(); });
+
+    const nameInput = row.createEl('input', { type: 'text', value: client.name, cls: 'pm-settings-gcm-name' });
+    nameInput.placeholder = 'Client name';
+    nameInput.addEventListener('change', () => { client.name = nameInput.value.trim() || client.name; void this.plugin.saveSettings(); });
+
+    const contactInput = row.createEl('input', { type: 'text', value: client.contactName, cls: 'pm-settings-gcm-desc' });
+    contactInput.placeholder = 'Contact name (optional)';
+    contactInput.addEventListener('input', () => { client.contactName = contactInput.value; void this.plugin.saveSettings(); });
+
+    const emailInput = row.createEl('input', { type: 'text', value: client.contactEmail, cls: 'pm-settings-gcm-lead' });
+    emailInput.placeholder = 'Email (optional)';
+    emailInput.addEventListener('input', () => { client.contactEmail = emailInput.value; void this.plugin.saveSettings(); });
+
+    const del = row.createEl('button', { text: '✕', cls: 'pm-settings-del' });
+    del.addEventListener('click', () => {
+      this.plugin.settings.clients = this.plugin.settings.clients.filter(c => c.id !== client.id);
+      void this.plugin.saveSettings();
+      this.renderClientsSection(container);
+    });
   }
 
   private renderMembersList(container: HTMLElement): void {

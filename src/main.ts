@@ -122,6 +122,21 @@ export default class PMPlugin extends Plugin {
     if (!this.settings.globalTableMode) this.settings.globalTableMode = DEFAULT_SETTINGS.globalTableMode;
     if (!this.settings.globalTableProjectColumns?.length) this.settings.globalTableProjectColumns = [...DEFAULT_SETTINGS.globalTableProjectColumns];
     if (!this.settings.projectFilterState) this.settings.projectFilterState = { ...DEFAULT_SETTINGS.projectFilterState };
+    if (!this.settings.groups)   this.settings.groups   = [];
+    if (!this.settings.clients)  this.settings.clients  = [];
+
+    // Migrate groupColors → groups array (import legacy color data)
+    if (this.settings.groupColors && Object.keys(this.settings.groupColors).length > 0) {
+      const existingNames = new Set(this.settings.groups.map(g => g.name));
+      const { makeGroupConfig } = await import('./types');
+      for (const [name, color] of Object.entries(this.settings.groupColors)) {
+        if (!existingNames.has(name)) {
+          const g = makeGroupConfig(name);
+          g.color = color;
+          this.settings.groups.push(g);
+        }
+      }
+    }
 
     // Migrate pre-v1.3 statuses: add `complete` flag if missing
     let migrated = false;

@@ -162,14 +162,16 @@ export class ProjectModal extends Modal {
       type: 'text', value: this.project.group ?? '', cls: 'pm-input',
     });
     groupInput.placeholder = 'e.g. internal, acme corp'; // eslint-disable-line obsidianmd/ui/sentence-case
-    // Datalist from existing group names
+    // Datalist: prefer managed groups, fall back to groupColors keys for backward compat
     const groupDatalist = groupWrap.createEl('datalist', { attr: { id: 'pm-group-list' } });
     groupInput.setAttribute('list', 'pm-group-list');
-    const existingGroups = new Set(
-      Object.keys(this.plugin.settings.groupColors)
-    );
-    for (const g of existingGroups) {
-      groupDatalist.createEl('option', { value: g });
+    const groupNames = this.plugin.settings.groups.length
+      ? this.plugin.settings.groups.map(g => g.name)
+      : Object.keys(this.plugin.settings.groupColors);
+    for (const g of groupNames) {
+      const opt = groupDatalist.createEl('option', { attr: { value: g } });
+      const grp = this.plugin.settings.groups.find(x => x.name === g);
+      if (grp?.description) opt.label = grp.description;
     }
     groupInput.addEventListener('input', () => { this.project.group = groupInput.value.trim() || undefined; });
 
@@ -179,6 +181,13 @@ export class ProjectModal extends Modal {
       type: 'text', value: this.project.client ?? '', cls: 'pm-input',
     });
     clientInput.placeholder = 'Client or organisation name';  // intentional lowercase — not a heading
+    // Datalist from managed clients
+    const clientDatalist = clientWrap.createEl('datalist', { attr: { id: 'pm-client-list' } });
+    clientInput.setAttribute('list', 'pm-client-list');
+    for (const c of this.plugin.settings.clients) {
+      const opt = clientDatalist.createEl('option', { attr: { value: c.name } });
+      if (c.contactName) opt.label = c.contactName;
+    }
     clientInput.addEventListener('input', () => { this.project.client = clientInput.value.trim() || undefined; });
 
     // ── Owner ─────────────────────────────────────────────────────────────────
