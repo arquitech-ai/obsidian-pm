@@ -2498,3 +2498,180 @@ body.pm-resize-active, body.pm-resize-active * { cursor: col-resize !important; 
   opacity: 0.5;
 }
 
+/* ─── Global Gantt: new project row styles ─────────────────────────────────── */
+
+.pm-gantt-project-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  background: var(--pm-bg2);
+  border-bottom: 1px solid var(--pm-border);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+}
+.pm-gantt-project-row:hover { background: var(--pm-bg3); }
+
+.pm-gantt-project-chevron {
+  font-size: 10px;
+  color: var(--pm-text-muted);
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+  transition: color 0.12s;
+}
+.pm-gantt-project-row:hover .pm-gantt-project-chevron { color: var(--pm-text); }
+
+.pm-gantt-project-task-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--pm-bg3);
+  color: var(--pm-text-muted);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Project bar in SVG */
+.pm-gantt-project-bar {
+  opacity: 0.82;
+  cursor: default;
+}
+.pm-gantt-project-bar:hover { opacity: 1; }
+
+.pm-gantt-project-bar-shadow {
+  fill: rgba(0,0,0,0.08);
+  transform: translate(2px, 2px);
+}
+
+.pm-gantt-project-bar-label {
+  font-size: 11px;
+  font-weight: 600;
+  fill: #fff;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+
+/* Expand/collapse buttons in controls bar */
+.pm-gantt-expand-btn { font-size: 12px; }
+
+/* ─── Global Kanban: project cards ──────────────────────────────────────────── */
+
+.pm-kanban-view--projects .pm-kanban-board {
+  align-items: flex-start;
+}
+
+.pm-kanban-project-card {
+  position: relative;
+}
+
+.pm-kanban-project-card .pm-kanban-card-proj-bar {
+  height: 4px;
+}
+
+.pm-kanban-project-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.pm-kanban-project-title {
+  font-size: 13px;
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.pm-kanban-project-meta {
+  font-size: 11px;
+  color: var(--pm-text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.pm-kanban-project-owner {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+.pm-kanban-project-owner-name {
+  font-size: 11px;
+  color: var(--pm-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pm-kanban-project-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.pm-kanban-project-task-count {
+  font-size: 11px;
+  color: var(--pm-text-muted);
+  flex-shrink: 0;
+}
+.pm-kanban-project-pbar {
+  flex: 1;
+  height: 3px;
+  background: var(--background-modifier-border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.pm-kanban-project-pbar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.pm-kanban-project-budget {
+  font-size: 11px;
+  color: var(--pm-text-muted);
+  margin-top: 4px;
+}
+.pm-kanban-project-budget--over { color: var(--pm-danger); }
+
+.pm-kanban-project-dates {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+.pm-kanban-project-date {
+  font-size: 11px;
+  color: var(--pm-text-muted);
+}
+.pm-kanban-project-date--overdue {
+  color: var(--pm-danger);
+  font-weight: 600;
+}
+.pm-kanban-project-date-sep {
+  font-size: 11px;
+  color: var(--pm-text-faint);
+}
+
+/* Priority dot — corner indicator */
+.pm-kanban-project-priority-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+

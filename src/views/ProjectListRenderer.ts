@@ -1,7 +1,7 @@
 import { TFile, Menu } from 'obsidian';
 import type PMPlugin from '../main';
 import type { Project, Task, StatusConfig, GlobalViewMode } from '../types';
-import { safeAsync, isTerminalStatus } from '../utils';
+import { safeAsync, isTerminalStatus, resolveProjectDates, computeProjectSpent, fmtNum } from '../utils';
 import { openProjectModal } from '../ui/ModalFactory';
 import { projectStatusColor } from '../modals/ProjectModal';
 import { GlobalTableView } from './GlobalTableView';
@@ -219,7 +219,7 @@ function renderProjectCard(
   // Budget
   if (project.budget !== undefined && project.budget > 0) {
     const currency = project.currency ?? ctx.plugin.settings.defaultCurrency ?? 'EUR';
-    const spent = computeSpent(project);
+    const spent = computeProjectSpent(project);
     const budgetEl = meta.createEl('span', { cls: 'pm-project-card-budget' });
     if (spent > 0) {
       budgetEl.textContent = `${currency} ${fmtNum(spent)} / ${fmtNum(project.budget)}`;
@@ -387,62 +387,8 @@ function countTasks(tasks: Task[], doneOnly: boolean, statuses: StatusConfig[]):
   return n;
 }
 
-/** Compute hours-spent * hourlyRate for budget tracking */
-function computeSpent(project: Project): number {
-  if (!project.hourlyRate) return 0;
-  let hours = 0;
-  const walkTasks = (tasks: Task[]) => {
-    for (const t of tasks) {
-      if (t.timeLogs?.length) hours += t.timeLogs.reduce((s, l) => s + l.hours, 0);
-      walkTasks(t.subtasks);
-    }
-  };
-  walkTasks(project.tasks);
-  return hours * project.hourlyRate;
-}
-
-/** Resolve effective start/end dates: explicit fields first, then computed from tasks */
-function resolveProjectDates(project: Project): {
-  start: string | null; end: string | null; startAuto: boolean; endAuto: boolean;
-} {
-  let start = project.startDate ?? null;
-  let end   = project.endDate   ?? null;
-  let startAuto = false;
-  let endAuto   = false;
-
-  if (!start || !end) {
-    const allDates = collectTaskDates(project.tasks);
-    if (!start && allDates.starts.length > 0) {
-      start = allDates.starts.sort()[0];
-      startAuto = true;
-    }
-    if (!end && allDates.ends.length > 0) {
-      end = allDates.ends.sort().at(-1)!;
-      endAuto = true;
-    }
-  }
-  return { start, end, startAuto, endAuto };
-}
-
-function collectTaskDates(tasks: Task[]): { starts: string[]; ends: string[] } {
-  const starts: string[] = [];
-  const ends:   string[] = [];
-  for (const t of tasks) {
-    if (t.start) starts.push(t.start);
-    if (t.due)   ends.push(t.due);
-    const sub = collectTaskDates(t.subtasks);
-    starts.push(...sub.starts);
-    ends.push(...sub.ends);
-  }
-  return { starts, ends };
-}
-
 function fmtDate(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return iso;
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: '2-digit' });
-}
-
-function fmtNum(n: number): string {
-  return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }

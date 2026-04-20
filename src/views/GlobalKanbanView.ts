@@ -1,17 +1,31 @@
-import { Menu } from 'obsidian';
+import { TFile } from 'obsidian';
 import type PMPlugin from '../main';
-import type { Project, Task, TaskStatus } from '../types';
-import { flattenTasks, totalLoggedHours } from '../store/TaskTreeOps';
-import { stringToColor, formatDateShort, isTaskOverdue, isTerminalStatus, getPriorityConfig, formatBadgeText, safeAsync } from '../utils';
-import { openTaskModal } from '../ui/ModalFactory';
-import { buildTaskContextMenu } from '../ui/TaskContextMenu';
+import type { Project, ProjectStatus } from '../types';
+import { resolveProjectDates, computeProjectSpent, fmtNum, safeAsync } from '../utils';
+import { openProjectModal } from '../ui/ModalFactory';
 import type { SubView } from './SubView';
 
+// ─── Column definitions ───────────────────────────────────────────────────────
+
+interface StatusCol {
+  id: ProjectStatus | '__none__';
+  label: string;
+  color: string;
+}
+
+const PROJECT_STATUS_COLS: StatusCol[] = [
+  { id: '__none__',  label: 'No status',  color: '#8a94a0' },
+  { id: 'draft',     label: 'Draft',      color: '#8a94a0' },
+  { id: 'active',    label: 'Active',     color: '#79b58d' },
+  { id: 'on-hold',   label: 'On hold',    color: '#b8a06b' },
+  { id: 'completed', label: 'Completed',  color: '#6ba8a0' },
+  { id: 'cancelled', label: 'Cancelled',  color: '#767491' },
+];
+
+// ─── View ─────────────────────────────────────────────────────────────────────
+
 export class GlobalKanbanView implements SubView {
-  private dragTask: Task | null = null;
   private dragProject: Project | null = null;
-  private cleanupFns: (() => void)[] = [];
-  private taskProjectMap = new Map<string, Project>();
 
   constructor(
     private container: HTMLElement,
@@ -20,210 +34,199 @@ export class GlobalKanbanView implements SubView {
     private onRefreshAll: () => Promise<void>,
   ) {}
 
-  destroy(): void {
-    for (const fn of this.cleanupFns) fn();
-    this.cleanupFns = [];
-  }
+  destroy(): void { /* no listeners to clean up */ }
 
   render(): void {
-    this.destroy();
-    this.buildProjectMap();
     this.container.empty();
-    this.container.addClass('pm-kanban-view');
+    this.container.addClass('pm-kanban-view', 'pm-kanban-view--projects');
+
     const board = this.container.createDiv('pm-kanban-board');
-    for (const status of this.plugin.settings.statuses) {
-      const tasks = this.getTasksForStatus(status.id);
-      this.renderColumn(board, status, tasks);
+
+    for (const col of PROJECT_STATUS_COLS) {
+      const projects = this.getProjectsForCol(col.id);
+      // hide empty "no status" column when all projects have a status
+      if (col.id === '__none__' && projects.length === 0) continue;
+      this.renderColumn(board, col, projects);
     }
   }
 
-  private buildProjectMap(): void {
-    this.taskProjectMap.clear();
-    for (const p of this.projects) {
-      for (const { task } of flattenTasks(p.tasks)) {
-        this.taskProjectMap.set(task.id, p);
-      }
-    }
+  private getProjectsForCol(colId: StatusCol['id']): Project[] {
+    return this.projects.filter(p =>
+      colId === '__none__' ? !p.status : p.status === colId,
+    );
   }
 
-  private getProject(task: Task): Project {
-    return this.taskProjectMap.get(task.id) ?? this.projects[0];
-  }
+  private renderColumn(board: HTMLElement, col: StatusCol, projects: Project[]): void {
+    const colEl = board.createDiv('pm-kanban-col');
+    colEl.dataset.status = col.id;
 
-  private getTasksForStatus(status: TaskStatus): Task[] {
-    const result: Task[] = [];
-    for (const p of this.projects) {
-      if (this.plugin.settings.kanbanShowSubtasks) {
-        result.push(...flattenTasks(p.tasks).map(ft => ft.task).filter(t => t.status === status && !t.archived));
-      } else {
-        result.push(...p.tasks.filter(t => t.status === status && !t.archived));
-      }
-    }
-    return result;
-  }
-
-  private renderColumn(
-    board: HTMLElement,
-    status: { id: string; label: string; color: string; icon: string },
-    tasks: Task[],
-  ): void {
-    const col = board.createDiv('pm-kanban-col');
-    col.dataset.status = status.id;
-
-    const header = col.createDiv('pm-kanban-col-header');
-    header.style.setProperty('--col-color', status.color);
+    // Column header
+    const header = colEl.createDiv('pm-kanban-col-header');
+    header.style.setProperty('--col-color', col.color);
     const topBar = header.createDiv('pm-kanban-col-topbar');
-    topBar.setCssStyles({ background: status.color });
+    topBar.setCssStyles({ background: col.color });
     const titleRow = header.createDiv('pm-kanban-col-title-row');
-    const badge = titleRow.createEl('span', {
-      text: formatBadgeText(status.icon, status.label),
-      cls: 'pm-kanban-col-badge',
-    });
-    badge.style.color = status.color;
-    const headerRight = titleRow.createDiv('pm-kanban-col-header-right');
-    headerRight.createEl('span', { text: String(tasks.length), cls: 'pm-kanban-col-count' });
+    const badge = titleRow.createEl('span', { text: col.label, cls: 'pm-kanban-col-badge' });
+    badge.style.color = col.color;
+    titleRow.createDiv('pm-kanban-col-header-right')
+      .createEl('span', { text: String(projects.length), cls: 'pm-kanban-col-count' });
 
-    const cardsEl = col.createDiv('pm-kanban-cards');
-    cardsEl.dataset.status = status.id;
+    // Cards container
+    const cardsEl = colEl.createDiv('pm-kanban-cards');
+    cardsEl.dataset.status = col.id;
 
-    for (const task of tasks) {
-      this.renderCard(cardsEl, task);
+    for (const project of projects) {
+      this.renderProjectCard(cardsEl, project);
     }
 
-    cardsEl.addEventListener('dragover', e => {
+    // Drop zone
+    cardsEl.addEventListener('dragover', (e: DragEvent) => {
       e.preventDefault();
       cardsEl.addClass('pm-kanban-drop-target');
+      // ghost reorder within column
       const afterEl = this.getDragAfterElement(cardsEl, e.clientY);
-      const dragging = cardsEl.querySelector('.pm-kanban-card--dragging');
+      const dragging = document.querySelector('.pm-kanban-card--dragging');
       if (dragging) {
         if (afterEl) cardsEl.insertBefore(dragging, afterEl);
         else cardsEl.appendChild(dragging);
       }
     });
-
-    cardsEl.addEventListener('dragleave', () => {
-      cardsEl.removeClass('pm-kanban-drop-target');
-    });
-
+    cardsEl.addEventListener('dragleave', () => cardsEl.removeClass('pm-kanban-drop-target'));
     cardsEl.addEventListener('drop', safeAsync(async (e: DragEvent) => {
       e.preventDefault();
       cardsEl.removeClass('pm-kanban-drop-target');
-      if (!this.dragTask || !this.dragProject) return;
-      const newStatus = status.id;
-      if (newStatus !== this.dragTask.status) {
-        await this.plugin.store.updateTask(this.dragProject, this.dragTask.id, { status: newStatus });
+      if (!this.dragProject) return;
+      const newStatus: ProjectStatus | undefined = col.id === '__none__' ? undefined : col.id;
+      if (newStatus !== this.dragProject.status) {
+        this.dragProject.status = newStatus;
+        await this.plugin.store.saveProject(this.dragProject);
         await this.onRefreshAll();
       }
-      this.dragTask = null;
       this.dragProject = null;
     }));
   }
 
-  private renderCard(container: HTMLElement, task: Task): void {
-    const project = this.getProject(task);
-    const card = container.createDiv('pm-kanban-card');
+  private renderProjectCard(container: HTMLElement, project: Project): void {
+    const card = container.createDiv('pm-kanban-card pm-kanban-project-card');
     card.draggable = true;
-    card.dataset.taskId = task.id;
+    card.dataset.projectId = project.id;
 
-    // Thin project color stripe at card top
-    const projBar = card.createDiv('pm-kanban-card-proj-bar');
-    projBar.style.background = project.color;
-
-    const priorityConfig = getPriorityConfig(this.plugin.settings.priorities, task.priority);
-    if (priorityConfig && task.priority !== 'medium' && task.priority !== 'low') {
-      const priorityBar = card.createDiv('pm-kanban-card-priority-bar');
-      priorityBar.setCssStyles({ background: priorityConfig.color });
-    }
+    // Accent bar
+    const bar = card.createDiv('pm-kanban-card-proj-bar');
+    bar.setCssStyles({ background: project.color });
 
     const body = card.createDiv('pm-kanban-card-body');
 
-    // Project badge
-    const projBadge = body.createDiv('pm-kanban-card-project');
-    const projDot = projBadge.createEl('span', { cls: 'pm-global-project-dot pm-global-project-dot--sm' });
-    projDot.style.background = project.color;
-    projBadge.createEl('span', { text: project.title, cls: 'pm-kanban-card-project-name' });
-
-    // Title row
+    // Icon + title
     const titleRow = body.createDiv('pm-kanban-card-title-row');
-    titleRow.createEl('span', { text: task.title, cls: 'pm-kanban-card-title' });
-    if (task.type === 'milestone') {
-      titleRow.createEl('span', { text: 'M', cls: 'pm-task-badge pm-task-badge--milestone', attr: { title: 'Milestone' } });
-    }
-    if (task.type === 'subtask') {
-      titleRow.createEl('span', { text: 'Sub', cls: 'pm-task-badge pm-task-badge--subtask', attr: { title: 'Subtask' } });
-    }
-    if (task.recurrence) {
-      titleRow.createEl('span', { text: 'R', cls: 'pm-task-badge pm-task-badge--recurrence', attr: { title: 'Recurring' } });
+    titleRow.createEl('span', { text: project.icon, cls: 'pm-kanban-project-icon' });
+    titleRow.createEl('span', {
+      text: project.title,
+      cls: 'pm-kanban-card-title pm-kanban-project-title',
+      attr: { title: project.title },
+    });
+
+    // Group / client
+    const meta = project.client || project.group;
+    if (meta) {
+      body.createEl('div', { text: meta, cls: 'pm-kanban-project-meta' });
     }
 
-    // Time badge
-    const logged = totalLoggedHours(task);
-    const est = task.timeEstimate ?? 0;
-    if (logged > 0 || est > 0) {
-      const timeBadge = body.createEl('span', { cls: 'pm-time-chip pm-time-chip--sm' });
-      timeBadge.setText(est > 0 ? `${logged}/${est}h` : `${logged}h`);
-      if (est > 0 && logged > est) timeBadge.addClass('pm-time-chip--over');
+    // Owner
+    if (project.owner) {
+      const ownerRow = body.createDiv('pm-kanban-project-owner');
+      const av = ownerRow.createEl('span', { cls: 'pm-avatar pm-avatar--sm' });
+      av.textContent = project.owner.slice(0, 2).toUpperCase();
+      ownerRow.createEl('span', { text: project.owner, cls: 'pm-kanban-project-owner-name' });
     }
 
-    // Tags
-    if (task.tags.length) {
-      const tagsEl = body.createDiv('pm-kanban-card-tags');
-      for (const tag of task.tags.slice(0, 3)) {
-        tagsEl.createEl('span', { text: tag, cls: 'pm-tag pm-tag--sm' });
+    // Progress bar + task count
+    const { total, done } = this.countTasks(project);
+    if (total > 0) {
+      const progRow = body.createDiv('pm-kanban-project-progress-row');
+      progRow.createEl('span', { text: `${done}/${total}`, cls: 'pm-kanban-project-task-count' });
+      const bar2 = progRow.createDiv('pm-kanban-project-pbar');
+      const fill = bar2.createDiv('pm-kanban-project-pbar-fill');
+      fill.setCssStyles({ width: `${Math.round((done / total) * 100)}%`, background: project.color });
+    }
+
+    // Budget
+    if (project.budget) {
+      const currency = project.currency ?? this.plugin.settings.defaultCurrency ?? 'EUR';
+      const spent = computeProjectSpent(project);
+      const budgetEl = body.createEl('div', { cls: 'pm-kanban-project-budget' });
+      budgetEl.textContent = spent > 0
+        ? `${currency} ${fmtNum(spent)} / ${fmtNum(project.budget)}`
+        : `${currency} ${fmtNum(project.budget)}`;
+      if (spent > project.budget) budgetEl.addClass('pm-kanban-project-budget--over');
+    }
+
+    // Date range
+    const { start, end } = resolveProjectDates(project);
+    if (start || end) {
+      const datesEl = body.createDiv('pm-kanban-project-dates');
+      const today = new Date().toISOString().slice(0, 10);
+      if (start) datesEl.createEl('span', { text: fmtShortDate(start), cls: 'pm-kanban-project-date' });
+      if (start && end) datesEl.createEl('span', { text: '→', cls: 'pm-kanban-project-date-sep' });
+      if (end) {
+        const endEl = datesEl.createEl('span', {
+          text: fmtShortDate(end),
+          cls: 'pm-kanban-project-date',
+        });
+        if (end < today && project.status !== 'completed' && project.status !== 'cancelled') {
+          endEl.addClass('pm-kanban-project-date--overdue');
+        }
       }
     }
 
-    // Footer: avatars + due date
-    const footer = body.createDiv('pm-kanban-card-footer');
-    const avatars = footer.createDiv('pm-kanban-card-avatars');
-    for (const a of task.assignees.slice(0, 3)) {
-      const av = avatars.createEl('span', { cls: 'pm-avatar pm-avatar--sm' });
-      av.textContent = a.slice(0, 2).toUpperCase();
-      av.title = a;
-      av.style.background = stringToColor(a);
-    }
-    if (task.due) {
-      const overdue = isTaskOverdue(task, this.plugin.settings.statuses);
-      const chip = footer.createEl('span', { text: formatDateShort(task.due), cls: 'pm-kanban-due' });
-      if (overdue) chip.addClass('pm-kanban-due--overdue');
+    // Priority indicator
+    if (project.priority) {
+      const PRIORITY_COLORS: Record<string, string> = {
+        critical: '#c47070', high: '#b8a06b', medium: '#8a94a0', low: '#79b58d',
+      };
+      const dot = card.createDiv('pm-kanban-project-priority-dot');
+      dot.setCssStyles({ background: PRIORITY_COLORS[project.priority] ?? '#8a94a0' });
+      dot.title = project.priority;
     }
 
-    // Progress bar (project-colored)
-    if (task.progress > 0) {
-      const pbar = body.createDiv('pm-kanban-card-pbar');
-      const pfill = pbar.createDiv('pm-kanban-card-pbar-fill');
-      pfill.setCssStyles({ width: `${task.progress}%`, background: project.color });
-    }
-
-    // Subtask count
-    if (task.subtasks.length) {
-      body.createEl('span', {
-        text: `${task.subtasks.filter(s => isTerminalStatus(s.status, this.plugin.settings.statuses)).length}/${task.subtasks.length} subtasks`,
-        cls: 'pm-kanban-card-subtasks',
-      });
-    }
-
-    card.addEventListener('dragstart', () => {
-      this.dragTask = task;
+    // Drag
+    card.addEventListener('dragstart', (e: DragEvent) => {
       this.dragProject = project;
       card.addClass('pm-kanban-card--dragging');
-      setTimeout(() => card.addClass('pm-dragging'), 0);
+      e.dataTransfer?.setData('text/plain', project.id);
     });
     card.addEventListener('dragend', () => {
       card.removeClass('pm-kanban-card--dragging');
-      card.removeClass('pm-dragging');
+      this.dragProject = null;
     });
 
-    card.addEventListener('click', () => {
-      openTaskModal(this.plugin, project, { task, onSave: async () => { await this.onRefreshAll(); } });
-    });
+    // Click → open project
+    card.addEventListener('click', safeAsync(async () => {
+      const file = this.plugin.app.vault.getAbstractFileByPath(project.filePath);
+      if (file instanceof TFile) await this.plugin.openProjectFile(file);
+    }));
 
-    card.addEventListener('contextmenu', (e) => {
+    // Right-click → edit
+    card.addEventListener('contextmenu', (e: MouseEvent) => {
       e.preventDefault();
-      const menu = new Menu();
-      buildTaskContextMenu(menu, task, { plugin: this.plugin, project, onRefresh: this.onRefreshAll });
-      menu.showAtMouseEvent(e);
+      openProjectModal(this.plugin, {
+        project,
+        onSave: async () => { await this.onRefreshAll(); },
+      });
     });
+  }
+
+  private countTasks(project: Project): { total: number; done: number } {
+    let total = 0, done = 0;
+    const walk = (tasks: typeof project.tasks) => {
+      for (const t of tasks) {
+        total++;
+        if (this.plugin.settings.statuses.find(s => s.id === t.status)?.complete) done++;
+        walk(t.subtasks);
+      }
+    };
+    walk(project.tasks);
+    return { total, done };
   }
 
   private getDragAfterElement(container: HTMLElement, y: number): Element | null {
@@ -233,11 +236,14 @@ export class GlobalKanbanView implements SubView {
     for (const card of cards) {
       const box = card.getBoundingClientRect();
       const offset = y - box.top - box.height / 2;
-      if (offset < 0 && offset > closestOffset) {
-        closestOffset = offset;
-        closest = card;
-      }
+      if (offset < 0 && offset > closestOffset) { closestOffset = offset; closest = card; }
     }
     return closest;
   }
+}
+
+function fmtShortDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }

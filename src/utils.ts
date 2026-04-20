@@ -1,5 +1,5 @@
 import { Notice } from 'obsidian';
-import type { Task, StatusConfig, PriorityConfig, TaskPriority } from './types';
+import type { Task, Project, StatusConfig, PriorityConfig, TaskPriority } from './types';
 
 /** Deterministic HSL color from a string (e.g. assignee name) */
 export function stringToColor(s: string): string {
@@ -116,6 +116,57 @@ export function safeAsync<A extends unknown[]>(fn: (...args: A) => Promise<void>
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// ─── Project date helpers ─────────────────────────────────────────────────────
+
+function collectTaskDates(tasks: Task[]): { starts: string[]; ends: string[] } {
+  const starts: string[] = [];
+  const ends:   string[] = [];
+  for (const t of tasks) {
+    if (t.start) starts.push(t.start);
+    if (t.due)   ends.push(t.due);
+    const sub = collectTaskDates(t.subtasks);
+    starts.push(...sub.starts);
+    ends.push(...sub.ends);
+  }
+  return { starts, ends };
+}
+
+/** Resolve effective start/end dates for a project.
+ *  Explicit fields take priority; otherwise computed from task dates. */
+export function resolveProjectDates(project: Project): {
+  start: string | null; end: string | null; startAuto: boolean; endAuto: boolean;
+} {
+  let start = project.startDate ?? null;
+  let end   = project.endDate   ?? null;
+  let startAuto = false;
+  let endAuto   = false;
+  if (!start || !end) {
+    const all = collectTaskDates(project.tasks);
+    if (!start && all.starts.length) { start = all.starts.sort()[0]; startAuto = true; }
+    if (!end   && all.ends.length)   { end   = all.ends.sort().at(-1)!; endAuto = true; }
+  }
+  return { start, end, startAuto, endAuto };
+}
+
+/** Compute hours-spent × hourlyRate for a project */
+export function computeProjectSpent(project: Project): number {
+  if (!project.hourlyRate) return 0;
+  let hours = 0;
+  const walk = (tasks: Task[]) => {
+    for (const t of tasks) {
+      if (t.timeLogs?.length) hours += t.timeLogs.reduce((s, l) => s + l.hours, 0);
+      walk(t.subtasks);
+    }
+  };
+  walk(project.tasks);
+  return hours * project.hourlyRate;
+}
+
+/** Format a number without decimals */
+export function fmtNum(n: number): string {
+  return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
 
 /** Create an SVG element with attributes in one call */
 export function svgEl<K extends keyof SVGElementTagNameMap>(
