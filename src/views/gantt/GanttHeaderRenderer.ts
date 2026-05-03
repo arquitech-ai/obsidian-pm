@@ -30,8 +30,8 @@ function formatWeekLabel(weekStart: Date, days: number, weekNum: number, mode: G
 
 // ─── Timeline header ───────────────────────────────────────────────────────
 
-export function renderTimelineHeader(ctx: RendererContext): void {
-  const g = svgEl('g', { class: 'pm-gantt-header' });
+export function renderTimelineHeader(ctx: RendererContext): SVGGElement {
+  const g = svgEl('g', { class: 'pm-gantt-header pm-gantt-header-sticky' });
 
   g.appendChild(svgEl('rect', {
     x: 0, y: 0, width: ctx.cfg.totalWidth,
@@ -45,6 +45,7 @@ export function renderTimelineHeader(ctx: RendererContext): void {
   else renderQuarterHeader(g, ctx);
 
   ctx.svgEl.appendChild(g);
+  return g;
 }
 
 function renderDayHeader(g: SVGGElement, ctx: RendererContext): void {

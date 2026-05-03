@@ -3,6 +3,7 @@ import { COLOR_ACCENT } from './constants';
 export type TaskStatus = string;
 export type TaskPriority = 'critical' | 'high' | 'medium' | 'low';
 export type GanttGranularity = 'day' | 'week' | 'month' | 'quarter';
+export type GanttStatusColor = 'green' | 'orange' | 'red' | 'grey';
 export type GanttWeekLabel = 'weekNumber' | 'dateRange' | 'both';
 export type ViewMode = 'table' | 'gantt' | 'kanban';
 export type GlobalViewMode = 'cards' | 'table' | 'kanban' | 'gantt';
@@ -84,6 +85,7 @@ export interface Project {
   hourlyRate?: number;  // default billing rate
   currency?: string;    // ISO 4217, e.g. "EUR"; falls back to settings.defaultCurrency
   sortOrder?: number;   // position within its group in the card view
+  ganttColor?: GanttStatusColor; // status color in global gantt (green/orange/red/grey)
 }
 
 export interface FilterState {

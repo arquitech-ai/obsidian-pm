@@ -1,5 +1,6 @@
+import { safeAsync } from '../utils';
 import type PMPlugin from '../main';
-import type { Project, Task, GanttGranularity } from '../types';
+import type { Project, Task, GanttGranularity, GanttStatusColor } from '../types';
 import { flattenTasks, filterArchived } from '../store/TaskTreeOps';
 import { resolveProjectDates } from '../utils';
 import { svgEl } from '../utils';
@@ -24,9 +25,104 @@ import {
 import type { RendererContext } from './gantt/GanttRenderer';
 import { renderTaskLabel } from './gantt/TaskLabelRenderer';
 import type { LabelContext } from './gantt/TaskLabelRenderer';
+import { openProjectModal } from '../ui/ModalFactory';
+import { showGanttTooltip, hideGanttTooltip } from './gantt/GanttTaskBarRenderer';
+import { computeProjectChangelog, appendChangelogEntries } from '../store/YamlSerializer';
 
-// Height of the project summary bar inside a row (slightly taller than task bars)
+// ─── Constants ─────────────────────────────────────────────────────────────
+
 const PROJECT_BAR_PADDING = 5;
+
+// Gantt status color → hex
+const GANTT_STATUS_HEX: Record<GanttStatusColor, string> = {
+  green:  '#79b58d',
+  orange: '#b8a06b',
+  red:    '#c47070',
+  grey:   '#8a94a0',
+};
+
+const GANTT_STATUS_LABELS: Record<GanttStatusColor, string> = {
+  green:  '🟢 On track',
+  orange: '🟡 At risk',
+  red:    '🔴 Delayed',
+  grey:   '⚪ Not started',
+};
+
+// ─── Quick ganttColor picker popup ─────────────────────────────────────────
+
+function showGanttColorPicker(
+  x: number,
+  y: number,
+  project: Project,
+  plugin: PMPlugin,
+  onSave: () => Promise<void>,
+): void {
+  document.querySelector('.pm-gantt-color-picker')?.remove();
+
+  const picker = document.createElement('div');
+  picker.className = 'pm-gantt-color-picker';
+
+  const title = document.createElement('div');
+  title.className = 'pm-gantt-color-picker-title';
+  title.textContent = 'Project status';
+  picker.appendChild(title);
+
+  const colors: GanttStatusColor[] = ['green', 'orange', 'red', 'grey'];
+  for (const c of colors) {
+    const btn = document.createElement('button');
+    btn.className = 'pm-gantt-color-picker-btn';
+    btn.style.setProperty('--gc-color', GANTT_STATUS_HEX[c]);
+    btn.innerHTML = `<span class="pm-gantt-color-picker-swatch"></span>${GANTT_STATUS_LABELS[c]}`;
+    if (project.ganttColor === c) btn.classList.add('pm-gantt-color-picker-btn--active');
+    btn.addEventListener('click', safeAsync(async () => {
+      picker.remove();
+      const oldProject = JSON.parse(JSON.stringify(project)) as Project;
+      project.ganttColor = c;
+      // Append changelog entry
+      const entries = computeProjectChangelog(oldProject, project);
+      if (entries.length) project.description = appendChangelogEntries(project.description, entries);
+      await plugin.store.saveProject(project);
+      await onSave();
+    }));
+    picker.appendChild(btn);
+  }
+
+  // Reset option
+  if (project.ganttColor) {
+    const resetBtn = document.createElement('button');
+    resetBtn.className = 'pm-gantt-color-picker-btn pm-gantt-color-picker-btn--reset';
+    resetBtn.textContent = '✕ Clear status';
+    resetBtn.addEventListener('click', safeAsync(async () => {
+      picker.remove();
+      const oldProject = JSON.parse(JSON.stringify(project)) as Project;
+      project.ganttColor = undefined;
+      const entries = computeProjectChangelog(oldProject, project);
+      if (entries.length) project.description = appendChangelogEntries(project.description, entries);
+      await plugin.store.saveProject(project);
+      await onSave();
+    }));
+    picker.appendChild(resetBtn);
+  }
+
+  document.body.appendChild(picker);
+
+  // Position
+  picker.style.left = '0px'; picker.style.top = '0px';
+  const rect = picker.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  picker.style.left = `${Math.min(x, vw - rect.width - 8)}px`;
+  picker.style.top  = `${Math.min(y, vh - rect.height - 8)}px`;
+
+  const close = (e: MouseEvent) => {
+    if (!picker.contains(e.target as Node)) {
+      picker.remove();
+      document.removeEventListener('click', close, true);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', close, true), 10);
+}
+
+// ─── GlobalGanttView ───────────────────────────────────────────────────────
 
 export class GlobalGanttView implements SubView {
   private granularity: GanttGranularity;
@@ -64,7 +160,6 @@ export class GlobalGanttView implements SubView {
     const allTasksForConfig: Task[] = [];
     for (const p of this.projects) {
       allTasksForConfig.push(...filterArchived(p.tasks));
-      // inject synthetic tasks for project start/end so the timeline spans them
       const { start, end } = resolveProjectDates(p);
       if (start) allTasksForConfig.push({ start, due: '', id: '__proj__', title: '', description: '', type: 'task', status: 'todo', priority: 'medium', progress: 0, assignees: [], tags: [], subtasks: [], dependencies: [], customFields: {}, collapsed: false, createdAt: '', updatedAt: '' });
       if (end)   allTasksForConfig.push({ start: '', due: end, id: '__proj__', title: '', description: '', type: 'task', status: 'todo', priority: 'medium', progress: 0, assignees: [], tags: [], subtasks: [], dependencies: [], customFields: {}, collapsed: false, createdAt: '', updatedAt: '' });
@@ -80,7 +175,6 @@ export class GlobalGanttView implements SubView {
   private renderControls(): void {
     const bar = this.container.createDiv('pm-gantt-controls');
 
-    // Granularity buttons
     const levels: GanttGranularity[] = ['day', 'week', 'month', 'quarter'];
     const labels: Record<GanttGranularity, string> = { day: 'Day', week: 'Week', month: 'Month', quarter: 'Quarter' };
     for (const level of levels) {
@@ -100,7 +194,6 @@ export class GlobalGanttView implements SubView {
 
     bar.createEl('span', { cls: 'pm-gantt-sep' });
 
-    // Global expand / collapse buttons
     const allCollapsed = this.projects.length > 0 && this.projects.every(p => this.collapsedProjects.has(p.id));
     const allExpanded  = this.collapsedProjects.size === 0;
 
@@ -123,11 +216,10 @@ export class GlobalGanttView implements SubView {
   // ─── Main Gantt ────────────────────────────────────────────────────────────
 
   private renderGantt(): void {
-    // Pre-compute visible rows per project
     interface Section {
       project: Project;
       tasks: Task[];
-      taskRows: number;   // number of visible task rows when expanded
+      taskRows: number;
       collapsed: boolean;
     }
     const sections: Section[] = [];
@@ -139,7 +231,7 @@ export class GlobalGanttView implements SubView {
       const taskRows = collapsed ? 0 :
         flattenTasks(tasks).filter(f => f.visible || f.depth === 0).length;
       sections.push({ project: p, tasks, taskRows, collapsed });
-      totalRows += 1 + taskRows; // 1 = project row
+      totalRows += 1 + taskRows;
     }
 
     const wrapper = this.container.createDiv('pm-gantt-wrapper');
@@ -189,7 +281,6 @@ export class GlobalGanttView implements SubView {
     document.addEventListener('keydown', onKeyDown);
     this.cleanupFns.push(() => document.removeEventListener('keydown', onKeyDown));
 
-    // Base renderer context
     const allFlatTasks = sections.flatMap(s =>
       flattenTasks(s.tasks).filter(f => f.visible || f.depth === 0),
     );
@@ -200,7 +291,6 @@ export class GlobalGanttView implements SubView {
       onRefresh: this.onRefreshAll, cleanupFns: this.cleanupFns,
     };
 
-    renderTimelineHeader(baseCtx);
     renderGridLines(baseCtx, totalRows);
     renderTodayLine(baseCtx, svgHeight);
 
@@ -212,7 +302,7 @@ export class GlobalGanttView implements SubView {
     for (const { project, tasks, collapsed } of sections) {
       const projRowY = HEADER_HEIGHT + rowIndex * ROW_HEIGHT;
 
-      // ── Project row — left panel ────────────────────────────────────────────
+      // ── Project row — left panel label ──────────────────────────────────────
       const projRow = leftBody.createDiv('pm-gantt-project-row');
       projRow.style.height = `${ROW_HEIGHT}px`;
       projRow.dataset.projectId = project.id;
@@ -223,8 +313,12 @@ export class GlobalGanttView implements SubView {
       });
       chevron.title = collapsed ? 'Expand tasks' : 'Collapse tasks';
 
+      // Accent dot shows ganttColor if set, else project color
       const accent = projRow.createDiv('pm-gantt-project-section-accent');
-      accent.style.background = project.color;
+      accent.style.background = project.ganttColor
+        ? GANTT_STATUS_HEX[project.ganttColor]
+        : project.color;
+
       projRow.createEl('span', { text: project.icon, cls: 'pm-gantt-project-section-icon' });
       projRow.createEl('span', {
         text: project.title,
@@ -233,12 +327,8 @@ export class GlobalGanttView implements SubView {
       });
 
       const taskCount = flattenTasks(tasks).filter(f => f.depth === 0).length;
-      projRow.createEl('span', {
-        text: `${taskCount}`,
-        cls: 'pm-gantt-project-task-badge',
-      });
+      projRow.createEl('span', { text: `${taskCount}`, cls: 'pm-gantt-project-task-badge' });
 
-      // Toggle on chevron click OR anywhere in the project row header
       const toggleCollapse = () => {
         if (this.collapsedProjects.has(project.id)) {
           this.collapsedProjects.delete(project.id);
@@ -257,57 +347,147 @@ export class GlobalGanttView implements SubView {
         class: 'pm-gantt-project-section-bg',
       }));
 
-      // ── Project bar ──────────────────────────────────────────────────────────
-      const { start, end } = resolveProjectDates(project);
-      if (start && end) {
-        const startDate = new Date(start);
-        const endDate   = new Date(end);
-        endDate.setDate(endDate.getDate() + 1); // inclusive end
-        const x = Math.max(0, dateToX(this.cfg, startDate));
-        const x2 = dateToX(this.cfg, endDate);
-        const barWidth = Math.max(4, x2 - x);
-        const barY = projRowY + PROJECT_BAR_PADDING;
-        const barH = ROW_HEIGHT - PROJECT_BAR_PADDING * 2;
+      // ── Project bars (planned + dynamic) ────────────────────────────────────
+      const barY = projRowY + PROJECT_BAR_PADDING;
+      const barH = ROW_HEIGHT - PROJECT_BAR_PADDING * 2;
 
-        // Shadow/background rect
+      // Resolved (dynamic) dates — auto-computed from tasks
+      const { start: dynStart, end: dynEnd } = resolveProjectDates(project);
+      // Planned (fixed) dates — only from explicit startDate/endDate fields
+      const plannedStart = project.startDate || null;
+      const plannedEnd   = project.endDate   || null;
+
+      const datesMatch = (a: string | null, b: string | null) => !a || !b || a === b;
+      const bothSame = datesMatch(plannedStart, dynStart) && datesMatch(plannedEnd, dynEnd);
+
+      // ── Planned bar (grey, slightly taller → acts as halo when dates match)
+      if (plannedStart && plannedEnd) {
+        const ps = new Date(plannedStart);
+        const pe = new Date(plannedEnd);
+        pe.setDate(pe.getDate() + 1);
+        const px  = Math.max(0, dateToX(this.cfg, ps));
+        const px2 = dateToX(this.cfg, pe);
+        const pw  = Math.max(4, px2 - px);
+
+        // Slightly expand planned bar so it peeks as a border when dynamic bar overlays it
+        const haloExtra = bothSame ? 2 : 0;
         barsGroup.appendChild(svgEl('rect', {
-          x, y: barY, width: barWidth, height: barH,
+          x: px - haloExtra, y: barY - haloExtra,
+          width: pw + haloExtra * 2, height: barH + haloExtra * 2,
+          rx: BAR_BORDER_RADIUS + 1, ry: BAR_BORDER_RADIUS + 1,
+          class: 'pm-gantt-project-bar-planned',
+        }));
+      }
+
+      // ── Dynamic bar (colored by ganttColor or project.color) ────────────────
+      if (dynStart && dynEnd) {
+        const ds = new Date(dynStart);
+        const de = new Date(dynEnd);
+        de.setDate(de.getDate() + 1);
+        const dx  = Math.max(0, dateToX(this.cfg, ds));
+        const dx2 = dateToX(this.cfg, de);
+        const dw  = Math.max(4, dx2 - dx);
+
+        const fillColor  = project.ganttColor ? GANTT_STATUS_HEX[project.ganttColor] : project.color;
+        const borderColor = project.color;
+
+        // Border rect (project.color)
+        barsGroup.appendChild(svgEl('rect', {
+          x: dx, y: barY, width: dw, height: barH,
           rx: BAR_BORDER_RADIUS, ry: BAR_BORDER_RADIUS,
-          class: 'pm-gantt-project-bar-shadow',
+          fill: 'none',
+          stroke: borderColor,
+          'stroke-width': 2,
+          class: 'pm-gantt-project-bar-border',
         }));
 
-        // Main bar
+        // Fill rect (ganttColor or project.color)
         const projBar = svgEl('rect', {
-          x, y: barY, width: barWidth, height: barH,
-          rx: BAR_BORDER_RADIUS, ry: BAR_BORDER_RADIUS,
+          x: dx + 1, y: barY + 1, width: Math.max(2, dw - 2), height: barH - 2,
+          rx: Math.max(0, BAR_BORDER_RADIUS - 1), ry: Math.max(0, BAR_BORDER_RADIUS - 1),
           class: 'pm-gantt-project-bar',
-          fill: project.color,
+          fill: fillColor,
+          opacity: 0.8,
         });
         barsGroup.appendChild(projBar);
 
         // Label inside bar (if it fits)
-        const labelText = project.title;
-        const textX = x + 8;
+        const textX = dx + 8;
         const textY = projRowY + ROW_HEIGHT / 2 + 1;
+
+        const defs = this.svgEl.querySelector('defs') ?? (() => {
+          const d = svgEl('defs', {}); this.svgEl.prepend(d); return d;
+        })();
+        const clipRect = svgEl('clipPath', { id: `clip-proj-${project.id}` });
+        clipRect.appendChild(svgEl('rect', { x: dx + 2, y: barY, width: Math.max(0, dw - 4), height: barH }));
+        defs.appendChild(clipRect);
+
         const textEl = svgEl('text', {
           x: textX, y: textY,
           class: 'pm-gantt-project-bar-label',
           'clip-path': `url(#clip-proj-${project.id})`,
         });
-        textEl.textContent = labelText;
-        // Clip path so text doesn't overflow the bar
-        const defs = this.svgEl.querySelector('defs') ?? (() => {
-          const d = svgEl('defs', {}); this.svgEl.prepend(d); return d;
-        })();
-        const clipRect = svgEl('clipPath', { id: `clip-proj-${project.id}` });
-        clipRect.appendChild(svgEl('rect', { x: x + 2, y: barY, width: Math.max(0, barWidth - 4), height: barH }));
-        defs.appendChild(clipRect);
+        textEl.textContent = project.title;
         barsGroup.appendChild(textEl);
 
         // Tooltip
-        const title = svgEl('title', {});
-        title.textContent = `${project.title}: ${start} → ${end}`;
-        projBar.appendChild(title);
+        const notes = (project.description ?? '').match(/## Notes\s*\n([\s\S]*?)(?=\n## |$)/i)?.[1]?.trim() ?? '';
+        const ttText = [
+          `${project.icon} ${project.title}`,
+          project.status ? `Status: ${project.status}` : '',
+          project.ganttColor ? `Gantt: ${GANTT_STATUS_LABELS[project.ganttColor]}` : '',
+          `${plannedStart || dynStart || '?'} → ${plannedEnd || dynEnd || '?'}`,
+          notes ? `Notes: ${notes.slice(0, 120)}${notes.length > 120 ? '…' : ''}` : '',
+        ].filter(Boolean).join('\n');
+        const svgTitle = svgEl('title', {});
+        svgTitle.textContent = ttText;
+        projBar.appendChild(svgTitle);
+
+        // HTML tooltip on hover
+        const makeProjectTask = () => ({
+          title: project.title,
+          status: project.status ?? '',
+          priority: project.priority ?? 'medium',
+          start: plannedStart ?? dynStart ?? '',
+          due: plannedEnd ?? dynEnd ?? '',
+          progress: 0,
+          assignees: project.teamMembers ?? [],
+          description: project.description ?? '',
+          type: 'task' as const,
+          tags: [],
+        });
+
+        projBar.addEventListener('mouseenter', (e: MouseEvent) => {
+          const t = makeProjectTask();
+          showGanttTooltip(e.clientX, e.clientY, t as unknown as Parameters<typeof showGanttTooltip>[2], project.status ?? 'project');
+        });
+        projBar.addEventListener('mousemove', (e: MouseEvent) => {
+          positionTooltipNear(e.clientX, e.clientY);
+        });
+        projBar.addEventListener('mouseleave', () => hideGanttTooltip());
+
+        // Single click → open ProjectModal
+        projBar.addEventListener('click', (e: MouseEvent) => {
+          e.stopPropagation();
+          const oldProject = JSON.parse(JSON.stringify(project)) as Project;
+          openProjectModal(this.plugin, {
+            project,
+            onSave: async (saved) => {
+              // Apply changelog for project-level field changes
+              const entries = computeProjectChangelog(oldProject, saved);
+              if (entries.length) saved.description = appendChangelogEntries(saved.description, entries);
+              await this.plugin.store.saveProject(saved);
+              await this.onRefreshAll();
+            },
+          });
+        });
+
+        // Double-click → ganttColor picker
+        projBar.addEventListener('dblclick', (e: MouseEvent) => {
+          e.stopPropagation();
+          hideGanttTooltip();
+          showGanttColorPicker(e.clientX, e.clientY, project, this.plugin, this.onRefreshAll);
+        });
       }
 
       rowIndex++;
@@ -337,6 +517,14 @@ export class GlobalGanttView implements SubView {
         renderMilestoneLabels({ ...projectCtx, flatTasks: allFlatTasks });
       }
     }
+
+    // ── Sticky header (rendered last so it's on top) ──────────────────────────
+    const headerG = renderTimelineHeader(baseCtx);
+    const onScroll = () => {
+      headerG.setAttribute('transform', `translate(0,${rightPanel.scrollTop})`);
+    };
+    rightPanel.addEventListener('scroll', onScroll);
+    this.cleanupFns.push(() => rightPanel.removeEventListener('scroll', onScroll));
 
     // ── Scroll sync ───────────────────────────────────────────────────────────
     const onLeftWheel = (e: WheelEvent) => {
@@ -380,4 +568,17 @@ export class GlobalGanttView implements SubView {
       }
     }
   }
+}
+
+// ─── Tooltip position helper (module-level) ───────────────────────────────
+
+function positionTooltipNear(x: number, y: number): void {
+  const tt = document.querySelector('.pm-gantt-tooltip') as HTMLElement | null;
+  if (!tt || tt.style.display === 'none') return;
+  const rect = tt.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const left = x + 12 + rect.width > vw ? x - rect.width - 12 : x + 12;
+  const top  = y + 12 + rect.height > vh ? y - rect.height - 12 : y + 12;
+  tt.style.left = `${Math.max(4, left)}px`;
+  tt.style.top  = `${Math.max(4, top)}px`;
 }

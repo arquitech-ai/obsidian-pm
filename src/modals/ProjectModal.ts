@@ -1,6 +1,6 @@
 import { App, Modal } from 'obsidian';
 import type PMPlugin from '../main';
-import { Project, CustomFieldDef, ProjectStatus, TaskPriority, makeId, makeProject } from '../types';
+import { Project, CustomFieldDef, ProjectStatus, TaskPriority, GanttStatusColor, makeId, makeProject } from '../types';
 import { stringToColor, safeAsync } from '../utils';
 import { COLOR_DANGER } from '../constants';
 
@@ -31,6 +31,7 @@ const PROJECT_STATUSES: { value: ProjectStatus; label: string; color: string }[]
 export class ProjectModal extends Modal {
   private project: Project;
   private isNew: boolean;
+  private originalProject: Project | null;
 
   constructor(
     app: App,
@@ -40,9 +41,11 @@ export class ProjectModal extends Modal {
   ) {
     super(app);
     if (existingProject) {
+      this.originalProject = existingProject;
       this.project = JSON.parse(JSON.stringify(existingProject));
       this.isNew = false;
     } else {
+      this.originalProject = null;
       this.project = makeProject('New Project', '');
       this.isNew = true;
     }
@@ -122,6 +125,46 @@ export class ProjectModal extends Modal {
       this.project.color = customColor.value;
       colorPalette.querySelectorAll('.pm-color-swatch').forEach(s =>
         s.removeClass('pm-color-swatch--selected'));
+    });
+
+    // ── Gantt status color ────────────────────────────────────────────────────
+    const ganttColorSection = el.createDiv('pm-project-modal-section');
+    ganttColorSection.createEl('label', { text: 'Gantt status', cls: 'pm-label' });
+    ganttColorSection.createEl('span', { text: 'Roadmap status indicator (overrides accent color in global gantt)', cls: 'pm-label-hint' });
+    const ganttColorRow = ganttColorSection.createDiv('pm-gantt-status-row');
+
+    const GANTT_STATUS_OPTIONS: { value: GanttStatusColor; label: string; hex: string }[] = [
+      { value: 'green',  label: '🟢 On track',    hex: '#79b58d' },
+      { value: 'orange', label: '🟡 At risk',      hex: '#b8a06b' },
+      { value: 'red',    label: '🔴 Delayed',      hex: '#c47070' },
+      { value: 'grey',   label: '⚪ Not started',  hex: '#8a94a0' },
+    ];
+
+    const ganttColorBtns: HTMLButtonElement[] = [];
+    for (const opt of GANTT_STATUS_OPTIONS) {
+      const btn = ganttColorRow.createEl('button', { cls: 'pm-gantt-status-btn' });
+      btn.style.setProperty('--gs-color', opt.hex);
+      btn.createEl('span', { cls: 'pm-gantt-status-btn-dot' });
+      btn.createEl('span', { text: opt.label, cls: 'pm-gantt-status-btn-label' });
+      if (this.project.ganttColor === opt.value) btn.addClass('pm-gantt-status-btn--active');
+      btn.addEventListener('click', () => {
+        this.project.ganttColor = opt.value;
+        ganttColorBtns.forEach(b => b.removeClass('pm-gantt-status-btn--active'));
+        btn.addClass('pm-gantt-status-btn--active');
+        clearGanttBtn.style.display = '';
+      });
+      ganttColorBtns.push(btn);
+    }
+
+    const clearGanttBtn = ganttColorRow.createEl('button', {
+      text: '✕ Clear',
+      cls: 'pm-gantt-status-btn pm-gantt-status-btn--clear',
+    });
+    clearGanttBtn.style.display = this.project.ganttColor ? '' : 'none';
+    clearGanttBtn.addEventListener('click', () => {
+      this.project.ganttColor = undefined;
+      ganttColorBtns.forEach(b => b.removeClass('pm-gantt-status-btn--active'));
+      clearGanttBtn.style.display = 'none';
     });
 
     // ── Status + Priority row ─────────────────────────────────────────────────
@@ -360,7 +403,7 @@ export class ProjectModal extends Modal {
         await this.plugin.saveSettings();
       }
 
-      await this.plugin.store.saveProject(this.project);
+      await this.plugin.store.saveProject(this.project, this.originalProject ?? undefined);
       await this.onSave(this.project);
       this.close();
     }));

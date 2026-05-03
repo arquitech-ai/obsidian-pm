@@ -11,7 +11,7 @@ import { computeSchedule } from './Scheduler';
 import { archiveTask as doArchiveTask, unarchiveTask as doUnarchiveTask } from './ArchiveOps';
 import { parseFrontmatter, FRONTMATTER_KEY, TASK_FRONTMATTER_KEY } from './YamlParser';
 import { hydrateProjectFromFrontmatter, hydrateTaskFromFile, hydrateTasks } from './YamlHydrator';
-import { serializeProject, serializeTask, taskFilePath } from './YamlSerializer';
+import { serializeProject, serializeTask, taskFilePath, computeTaskChangelog, appendChangelogEntries, computeProjectChangelog } from './YamlSerializer';
 
 /**
  * Handles all read/write operations against the Obsidian vault.
@@ -177,7 +177,13 @@ export class ProjectStore {
 
   // ─── Save ──────────────────────────────────────────────────────────────────
 
-  async saveProject(project: Project): Promise<void> {
+  async saveProject(project: Project, oldProject?: Project): Promise<void> {
+    if (oldProject) {
+      const entries = computeProjectChangelog(oldProject, project);
+      if (entries.length) {
+        project.description = appendChangelogEntries(project.description, entries);
+      }
+    }
     const key = project.filePath;
     const prev = this.saveQueues.get(key) ?? Promise.resolve();
     const next = prev.then(() => this.doSaveProject(project));
@@ -299,7 +305,18 @@ export class ProjectStore {
   }
 
   async updateTask(project: Project, taskId: string, patch: Partial<Task>): Promise<void> {
+    const oldTask = findTask(project.tasks, taskId);
+    const oldTaskSnapshot = oldTask ? { ...oldTask, assignees: [...(oldTask.assignees ?? [])], tags: [...(oldTask.tags ?? [])] } : null;
     updateTaskInTree(project.tasks, taskId, patch);
+    if (oldTaskSnapshot) {
+      const updated = findTask(project.tasks, taskId);
+      if (updated) {
+        const entries = computeTaskChangelog(oldTaskSnapshot as Task, updated);
+        if (entries.length) {
+          updated.description = appendChangelogEntries(updated.description, entries);
+        }
+      }
+    }
     await this.saveProject(project);
   }
 

@@ -12,6 +12,118 @@ import { attachDragHandle, attachBarMove } from './GanttDragHandler';
 import { handleLinkDotClick } from './GanttLinkHandler';
 import type { RendererContext } from './GanttRenderer';
 
+// ─── Notes extraction ──────────────────────────────────────────────────────
+
+function extractSection(description: string, sectionName: string): string {
+  const regex = new RegExp(`## ${sectionName}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, 'i');
+  const match = description.match(regex);
+  return match ? match[1].trim() : '';
+}
+
+// ─── Shared HTML tooltip ───────────────────────────────────────────────────
+
+let tooltipEl: HTMLElement | null = null;
+
+function getTooltip(): HTMLElement {
+  if (!tooltipEl) {
+    tooltipEl = document.createElement('div');
+    tooltipEl.className = 'pm-gantt-tooltip';
+    tooltipEl.style.display = 'none';
+    document.body.appendChild(tooltipEl);
+  }
+  return tooltipEl;
+}
+
+export function showGanttTooltip(
+  x: number,
+  y: number,
+  task: Task,
+  statusLabel: string,
+): void {
+  const tt = getTooltip();
+  const notes = extractSection(task.description ?? '', 'Notes');
+  const lines: string[] = [
+    `<strong>${task.title}</strong>`,
+    `${statusLabel} · ${task.priority}`,
+    `Start: ${task.start || '—'}  Due: ${task.due || '—'}`,
+    `Progress: ${task.progress}%`,
+  ];
+  if (task.assignees.length) lines.push(`Assignees: ${task.assignees.join(', ')}`);
+  if (notes) lines.push(`<hr class="pm-gantt-tooltip-hr"><div class="pm-gantt-tooltip-notes">${notes.replace(/\n/g, '<br>')}</div>`);
+
+  tt.innerHTML = lines.join('<br>');
+  tt.style.display = 'block';
+  positionTooltip(tt, x, y);
+}
+
+function positionTooltip(tt: HTMLElement, x: number, y: number): void {
+  tt.style.left = '0px';
+  tt.style.top = '0px';
+  tt.style.display = 'block';
+  const rect = tt.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const left = x + 12 + rect.width > vw ? x - rect.width - 12 : x + 12;
+  const top  = y + 12 + rect.height > vh ? y - rect.height - 12 : y + 12;
+  tt.style.left = `${Math.max(4, left)}px`;
+  tt.style.top  = `${Math.max(4, top)}px`;
+}
+
+export function hideGanttTooltip(): void {
+  const tt = getTooltip();
+  tt.style.display = 'none';
+}
+
+// ─── Quick status picker popup ─────────────────────────────────────────────
+
+export function showStatusPicker(
+  x: number,
+  y: number,
+  task: Task,
+  ctx: RendererContext,
+): void {
+  // Remove any existing picker
+  document.querySelector('.pm-gantt-status-picker')?.remove();
+
+  const picker = document.createElement('div');
+  picker.className = 'pm-gantt-status-picker';
+
+  for (const s of ctx.plugin.settings.statuses) {
+    const btn = document.createElement('button');
+    btn.className = 'pm-gantt-status-picker-btn';
+    btn.style.setProperty('--s-color', s.color);
+    btn.innerHTML = `<span class="pm-gantt-status-picker-dot"></span>${s.label}`;
+    if (task.status === s.id) btn.classList.add('pm-gantt-status-picker-btn--active');
+    btn.addEventListener('click', safeAsync(async () => {
+      picker.remove();
+      await ctx.plugin.store.updateTask(ctx.project, task.id, { status: s.id });
+      if (ctx.plugin.settings.autoSchedule) {
+        await ctx.plugin.store.scheduleAfterChange(ctx.project, task.id, ctx.plugin.settings.statuses);
+      }
+      await ctx.onRefresh();
+    }));
+    picker.appendChild(btn);
+  }
+
+  document.body.appendChild(picker);
+
+  // Position
+  picker.style.left = '0px';
+  picker.style.top = '0px';
+  const rect = picker.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  picker.style.left = `${Math.min(x, vw - rect.width - 8)}px`;
+  picker.style.top  = `${Math.min(y, vh - rect.height - 8)}px`;
+
+  // Close on outside click
+  const close = (e: MouseEvent) => {
+    if (!picker.contains(e.target as Node)) {
+      picker.remove();
+      document.removeEventListener('click', close, true);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', close, true), 10);
+}
+
 // ─── Task bars ─────────────────────────────────────────────────────────────
 
 export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: number, ctx: RendererContext): void {
@@ -52,7 +164,7 @@ export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: n
   const barGroup = svgEl('g', { class: 'pm-gantt-bar-group' });
   g.appendChild(barGroup);
 
-  // Main bar — flat fill, no gradient/shadow/sheen
+  // Main bar — flat fill
   const rect = svgEl('rect', {
     x, y, width, height,
     rx: BAR_BORDER_RADIUS, ry: BAR_BORDER_RADIUS,
@@ -95,15 +207,19 @@ export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: n
       class: 'pm-gantt-bar-label',
     });
     const maxChars = Math.max(4, Math.floor((width - 16) / 7.5));
-    label.textContent = task.title.length > maxChars ? task.title.slice(0, maxChars - 1) + '\u2026' : task.title;
+    label.textContent = task.title.length > maxChars ? task.title.slice(0, maxChars - 1) + '…' : task.title;
     barGroup.appendChild(label);
   }
 
-  // Tooltip
-  const ttEl = svgEl('title', {});
-  const assigneesStr = task.assignees.length ? `\nAssignees: ${task.assignees.join(', ')}` : '';
-  ttEl.textContent = `${task.title}\n${statusConfig?.label ?? task.status} \u00b7 ${task.priority}\nStart: ${task.start || '\u2014'}  Due: ${task.due || '\u2014'}\nProgress: ${task.progress}%${assigneesStr}`;
-  rect.appendChild(ttEl);
+  // HTML tooltip on hover
+  barGroup.addEventListener('mouseenter', (e: MouseEvent) => {
+    showGanttTooltip(e.clientX, e.clientY, task, statusConfig?.label ?? task.status);
+  });
+  barGroup.addEventListener('mousemove', (e: MouseEvent) => {
+    const tt = getTooltip();
+    if (tt.style.display !== 'none') positionTooltip(tt, e.clientX, e.clientY);
+  });
+  barGroup.addEventListener('mouseleave', () => hideGanttTooltip());
 
   // Drag handles
   const HANDLE_W = 8;
@@ -118,7 +234,7 @@ export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: n
     barGroup.appendChild(handle);
   }
 
-  // Link dots (dependency connectors) — positioned outside bar edges
+  // Link dots (dependency connectors)
   const DOT_R = 4;
   const DOT_GAP = 4;
   for (const side of ['left', 'right'] as const) {
@@ -129,9 +245,7 @@ export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: n
       class: 'pm-gantt-link-dot',
       cursor: 'crosshair',
     });
-    dot.addEventListener('mousedown', (e: MouseEvent) => {
-      e.stopPropagation();
-    });
+    dot.addEventListener('mousedown', (e: MouseEvent) => { e.stopPropagation(); });
     dot.addEventListener('click', (e: MouseEvent) => {
       e.stopPropagation();
       handleLinkDotClick(dot, task.id, side, ctx.link, ctx.plugin, ctx.project, ctx.onRefresh);
@@ -139,7 +253,7 @@ export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: n
     barGroup.appendChild(dot);
   }
 
-  // Move whole bar by dragging (only when both dates exist)
+  // Move whole bar
   if (task.start && task.due) {
     const moveCleanup = attachBarMove(rect, barGroup, task, x, width, ctx.cfg, ctx.drag, ctx.plugin, ctx.project, ctx.onRefresh);
     ctx.cleanupFns.push(moveCleanup);
@@ -148,10 +262,17 @@ export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: n
     rect.setAttribute('cursor', 'pointer');
   }
 
-  // Click to open modal (suppressed if drag occurred)
+  // Single click → open edit modal
   rect.addEventListener('click', () => {
     if (ctx.drag.dragMoved) { ctx.drag.dragMoved = false; return; }
     openTaskModal(ctx.plugin, ctx.project, { task, onSave: () => ctx.onRefresh() });
+  });
+
+  // Double-click → quick status picker
+  rect.addEventListener('dblclick', (e: MouseEvent) => {
+    e.stopPropagation();
+    hideGanttTooltip();
+    showStatusPicker(e.clientX, e.clientY, task, ctx);
   });
 }
 
@@ -160,13 +281,11 @@ export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: n
 function renderEmptyRowClickTarget(g: SVGGElement, task: Task, row: number, ctx: RendererContext): void {
   const rowY = HEADER_HEIGHT + row * ROW_HEIGHT;
 
-  // Invisible rect covering the full row — acts as click target
   const hitArea = svgEl('rect', {
     x: 0, y: rowY, width: ctx.cfg.totalWidth, height: ROW_HEIGHT,
     fill: 'transparent', cursor: 'cell', class: 'pm-gantt-empty-row-hit',
   });
 
-  // Hover preview bar (hidden until mouseover)
   const previewY = rowY + BAR_PADDING;
   const previewH = ROW_HEIGHT - BAR_PADDING * 2;
   const previewW = Math.max(ctx.cfg.dayWidth, 8);
@@ -184,7 +303,6 @@ function renderEmptyRowClickTarget(g: SVGGElement, task: Task, row: number, ctx:
   const snapPoints = getSnapPoints(ctx.cfg);
   const snapThreshold = ctx.cfg.dayWidth * 0.4;
 
-  // Track mouse to position the preview bar
   hitArea.addEventListener('mousemove', (e: MouseEvent) => {
     const svgRect = ctx.svgEl.getBoundingClientRect();
     const rawX = e.clientX - svgRect.left;
@@ -197,7 +315,6 @@ function renderEmptyRowClickTarget(g: SVGGElement, task: Task, row: number, ctx:
     preview.classList.add('pm-hidden');
   });
 
-  // Click to set start=due=clicked date and save
   hitArea.addEventListener('click', safeAsync(async (e: MouseEvent) => {
     const svgRect = ctx.svgEl.getBoundingClientRect();
     const rawX = e.clientX - svgRect.left;
@@ -218,7 +335,6 @@ function renderEmptyRowClickTarget(g: SVGGElement, task: Task, row: number, ctx:
     await ctx.onRefresh();
   }));
 
-  // Tooltip
   const tt = svgEl('title', {});
   tt.textContent = 'Click to set dates';
   hitArea.appendChild(tt);
@@ -242,11 +358,16 @@ function renderMilestoneDiamond(g: SVGGElement, task: Task, row: number, color: 
   g.appendChild(diamond);
 
   const tt = svgEl('title', {});
-  tt.textContent = `${task.title} (milestone)\nDate: ${task.due || task.start || '\u2014'}`;
+  tt.textContent = `${task.title} (milestone)\nDate: ${task.due || task.start || '—'}`;
   diamond.appendChild(tt);
 
   diamond.addEventListener('click', () => {
     openTaskModal(ctx.plugin, ctx.project, { task, onSave: () => ctx.onRefresh() });
+  });
+
+  diamond.addEventListener('dblclick', (e: MouseEvent) => {
+    e.stopPropagation();
+    showStatusPicker(e.clientX, e.clientY, task, ctx);
   });
 }
 
@@ -275,7 +396,7 @@ export function renderMilestoneLabels(ctx: RendererContext): void {
       x, y: 14, 'text-anchor': 'middle',
       class: 'pm-gantt-milestone-label', fill: color,
     });
-    label.textContent = task.title.length > 16 ? task.title.slice(0, 14) + '\u2026' : task.title;
+    label.textContent = task.title.length > 16 ? task.title.slice(0, 14) + '…' : task.title;
     labelsG.appendChild(label);
   }
 
@@ -325,7 +446,6 @@ export function renderDependencyArrows(ctx: RendererContext): void {
     }
   }
 
-  // Arrowhead marker
   const defs = getOrCreateDefs(ctx.svgEl);
   const marker = svgEl('marker', {
     id: 'pm-arrowhead', markerWidth: 8, markerHeight: 8,

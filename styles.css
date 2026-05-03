@@ -3262,3 +3262,206 @@ body.pm-resize-active, body.pm-resize-active * { cursor: col-resize !important; 
   outline: none;
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   v1.4.5 — Gantt status colors, sticky header, tooltips, status picker
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Sticky gantt header (stays on top via JS scroll-transform) ─────────── */
+.pm-gantt-header-sticky {
+  isolation: isolate;
+}
+.pm-gantt-header-sticky .pm-gantt-header-bg {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.18));
+}
+
+/* ─── Planned (baseline) project bar ─────────────────────────────────────── */
+.pm-gantt-project-bar-planned {
+  fill: #94a3b8;
+  opacity: 0.28;
+  stroke: #94a3b8;
+  stroke-width: 1.5;
+}
+.theme-dark .pm-gantt-project-bar-planned {
+  fill: #64748b;
+  stroke: #64748b;
+}
+
+/* ─── Dynamic project bar border ─────────────────────────────────────────── */
+.pm-gantt-project-bar-border {
+  opacity: 0.9;
+}
+
+/* ─── HTML tooltip ───────────────────────────────────────────────────────── */
+.pm-gantt-tooltip {
+  position: fixed;
+  z-index: 9999;
+  max-width: 280px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--pm-bg, #1e1e2e);
+  border: 1px solid var(--pm-border, #313244);
+  color: var(--pm-text, #cdd6f4);
+  font-size: 12px;
+  line-height: 1.55;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+.pm-gantt-tooltip-hr {
+  border: none;
+  border-top: 1px solid var(--pm-border, #313244);
+  margin: 6px 0;
+}
+.pm-gantt-tooltip-notes {
+  color: var(--pm-text-muted, #a6adc8);
+  font-size: 11px;
+  max-height: 100px;
+  overflow: hidden;
+}
+
+/* ─── Quick status picker popup ──────────────────────────────────────────── */
+.pm-gantt-status-picker {
+  position: fixed;
+  z-index: 9999;
+  min-width: 160px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--pm-bg, #1e1e2e);
+  border: 1px solid var(--pm-border, #313244);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pm-gantt-status-picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--pm-text, #cdd6f4);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.pm-gantt-status-picker-btn:hover {
+  background: var(--pm-bg2, #313244);
+}
+.pm-gantt-status-picker-btn--active {
+  background: var(--pm-bg2, #313244);
+  font-weight: 600;
+}
+.pm-gantt-status-picker-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--s-color, #8a94a0);
+  flex-shrink: 0;
+}
+
+/* ─── Gantt color picker popup (project status) ──────────────────────────── */
+.pm-gantt-color-picker {
+  position: fixed;
+  z-index: 9999;
+  min-width: 180px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--pm-bg, #1e1e2e);
+  border: 1px solid var(--pm-border, #313244);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pm-gantt-color-picker-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--pm-text-muted, #a6adc8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px 5px;
+}
+.pm-gantt-color-picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--pm-text, #cdd6f4);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+.pm-gantt-color-picker-btn:hover {
+  background: var(--pm-bg2, #313244);
+}
+.pm-gantt-color-picker-btn--active {
+  background: var(--pm-bg2, #313244);
+  font-weight: 600;
+}
+.pm-gantt-color-picker-btn--reset {
+  color: var(--pm-text-muted, #a6adc8);
+  font-size: 11px;
+  margin-top: 2px;
+  border-top: 1px solid var(--pm-border, #313244);
+  border-radius: 0 0 6px 6px;
+}
+.pm-gantt-color-picker-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--gc-color, #8a94a0);
+  flex-shrink: 0;
+}
+
+/* ─── ProjectModal: gantt status section ─────────────────────────────────── */
+.pm-gantt-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.pm-gantt-status-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1.5px solid var(--pm-border, #313244);
+  background: transparent;
+  color: var(--pm-text, #cdd6f4);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pm-gantt-status-btn:hover {
+  background: var(--pm-bg2, #313244);
+}
+.pm-gantt-status-btn--active {
+  border-color: var(--gs-color, #79b58d);
+  background: color-mix(in srgb, var(--gs-color, #79b58d) 15%, transparent);
+}
+.pm-gantt-status-btn-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gs-color, #8a94a0);
+  flex-shrink: 0;
+}
+.pm-gantt-status-btn--clear {
+  color: var(--pm-text-muted, #a6adc8);
+  font-size: 11px;
+}
+.pm-label-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--pm-text-muted, #a6adc8);
+  margin-top: 2px;
+  margin-bottom: 4px;
+}

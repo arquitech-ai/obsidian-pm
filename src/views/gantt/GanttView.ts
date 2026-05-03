@@ -180,12 +180,18 @@ export class GanttView implements SubView {
     this.cleanupFns.push(() => document.removeEventListener('keydown', onKeyDown));
 
     const ctx = this.makeRendererContext();
-    renderTimelineHeader(ctx);
     renderGridLines(ctx, totalRows);
     renderTodayLine(ctx, svgHeight);
     this.renderTaskRows(leftBody, ctx);
     renderDependencyArrows(ctx);
     renderMilestoneLabels(ctx);
+    // Header rendered last so it paints above bars, then pinned via scroll transform
+    const headerG = renderTimelineHeader(ctx);
+    const onScroll = () => {
+      headerG.setAttribute('transform', `translate(0,${rightPanel.scrollTop})`);
+    };
+    rightPanel.addEventListener('scroll', onScroll);
+    this.cleanupFns.push(() => rightPanel.removeEventListener('scroll', onScroll));
 
     // Forward wheel events from left panel to the scroll container
     // (left panel has overflow:hidden, so wheel events are swallowed otherwise)
