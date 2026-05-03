@@ -351,16 +351,25 @@ export class GlobalGanttView implements SubView {
       const barY = projRowY + PROJECT_BAR_PADDING;
       const barH = ROW_HEIGHT - PROJECT_BAR_PADDING * 2;
 
-      // Resolved (dynamic) dates — auto-computed from tasks
-      const { start: dynStart, end: dynEnd } = resolveProjectDates(project);
       // Planned (fixed) dates — only from explicit startDate/endDate fields
       const plannedStart = project.startDate || null;
       const plannedEnd   = project.endDate   || null;
 
-      const datesMatch = (a: string | null, b: string | null) => !a || !b || a === b;
-      const bothSame = datesMatch(plannedStart, dynStart) && datesMatch(plannedEnd, dynEnd);
+      // Dynamic dates — always auto-computed from task dates only (never uses startDate/endDate)
+      const dynStart = project.tasks.length ? (() => {
+        const allDates: string[] = [];
+        const collect = (tasks: Task[]) => { for (const t of tasks) { if (t.start) allDates.push(t.start); collect(t.subtasks); } };
+        collect(filterArchived(project.tasks));
+        return allDates.length ? allDates.sort()[0] : null;
+      })() : null;
+      const dynEnd = project.tasks.length ? (() => {
+        const allDates: string[] = [];
+        const collect = (tasks: Task[]) => { for (const t of tasks) { if (t.due) allDates.push(t.due); collect(t.subtasks); } };
+        collect(filterArchived(project.tasks));
+        return allDates.length ? allDates.sort().at(-1)! : null;
+      })() : null;
 
-      // ── Planned bar (grey, slightly taller → acts as halo when dates match)
+      // ── Planned bar (navy blue — always rendered when startDate+endDate are set)
       if (plannedStart && plannedEnd) {
         const ps = new Date(plannedStart);
         const pe = new Date(plannedEnd);
@@ -369,11 +378,9 @@ export class GlobalGanttView implements SubView {
         const px2 = dateToX(this.cfg, pe);
         const pw  = Math.max(4, px2 - px);
 
-        // Slightly expand planned bar so it peeks as a border when dynamic bar overlays it
-        const haloExtra = bothSame ? 2 : 0;
         barsGroup.appendChild(svgEl('rect', {
-          x: px - haloExtra, y: barY - haloExtra,
-          width: pw + haloExtra * 2, height: barH + haloExtra * 2,
+          x: px, y: barY - 2,
+          width: pw, height: barH + 4,
           rx: BAR_BORDER_RADIUS + 1, ry: BAR_BORDER_RADIUS + 1,
           class: 'pm-gantt-project-bar-planned',
         }));
@@ -429,19 +436,6 @@ export class GlobalGanttView implements SubView {
         });
         textEl.textContent = project.title;
         barsGroup.appendChild(textEl);
-
-        // Tooltip
-        const notes = (project.description ?? '').match(/## Notes\s*\n([\s\S]*?)(?=\n## |$)/i)?.[1]?.trim() ?? '';
-        const ttText = [
-          `${project.icon} ${project.title}`,
-          project.status ? `Status: ${project.status}` : '',
-          project.ganttColor ? `Gantt: ${GANTT_STATUS_LABELS[project.ganttColor]}` : '',
-          `${plannedStart || dynStart || '?'} → ${plannedEnd || dynEnd || '?'}`,
-          notes ? `Notes: ${notes.slice(0, 120)}${notes.length > 120 ? '…' : ''}` : '',
-        ].filter(Boolean).join('\n');
-        const svgTitle = svgEl('title', {});
-        svgTitle.textContent = ttText;
-        projBar.appendChild(svgTitle);
 
         // HTML tooltip on hover
         const makeProjectTask = () => ({
