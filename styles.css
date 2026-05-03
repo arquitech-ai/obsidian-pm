@@ -2563,6 +2563,13 @@ body.pm-resize-active, body.pm-resize-active * { cursor: col-resize !important; 
   dominant-baseline: middle;
   pointer-events: none;
 }
+.pm-gantt-project-bar-label--planned {
+  font-size: 10px;
+  font-weight: 400;
+  font-style: italic;
+  fill: #93c5fd;
+  pointer-events: none;
+}
 
 /* Expand/collapse buttons in controls bar */
 .pm-gantt-expand-btn { font-size: 12px; }

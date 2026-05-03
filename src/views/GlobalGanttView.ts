@@ -369,6 +369,32 @@ export class GlobalGanttView implements SubView {
         return allDates.length ? allDates.sort().at(-1)! : null;
       })() : null;
 
+      // Shared tooltip data for both bars
+      const makeProjectTask = () => ({
+        title: project.title,
+        status: project.status ?? '',
+        priority: project.priority ?? 'medium',
+        start: plannedStart ?? dynStart ?? '',
+        due: plannedEnd ?? dynEnd ?? '',
+        progress: 0,
+        assignees: project.teamMembers ?? [],
+        description: project.description ?? '',
+        type: 'task' as const,
+        tags: [],
+      });
+      const attachTooltip = (el: SVGElement) => {
+        el.addEventListener('mouseenter', (e: MouseEvent) => {
+          showGanttTooltip(e.clientX, e.clientY, makeProjectTask() as unknown as Parameters<typeof showGanttTooltip>[2], project.status ?? 'project');
+        });
+        el.addEventListener('mousemove', (e: MouseEvent) => positionTooltipNear(e.clientX, e.clientY));
+        el.addEventListener('mouseleave', () => hideGanttTooltip());
+      };
+
+      const defs = this.svgEl.querySelector('defs') ?? (() => {
+        const d = svgEl('defs', {}); this.svgEl.prepend(d); return d;
+      })();
+      const midY = projRowY + ROW_HEIGHT / 2 + 1;
+
       // ── Planned bar (navy blue — always rendered when startDate+endDate are set)
       if (plannedStart && plannedEnd) {
         const ps = new Date(plannedStart);
@@ -378,12 +404,49 @@ export class GlobalGanttView implements SubView {
         const px2 = dateToX(this.cfg, pe);
         const pw  = Math.max(4, px2 - px);
 
-        barsGroup.appendChild(svgEl('rect', {
+        const plannedBar = svgEl('rect', {
           x: px, y: barY - 2,
           width: pw, height: barH + 4,
           rx: BAR_BORDER_RADIUS + 1, ry: BAR_BORDER_RADIUS + 1,
           class: 'pm-gantt-project-bar-planned',
-        }));
+        });
+        barsGroup.appendChild(plannedBar);
+
+        // Clip + label for planned bar
+        const clipPlanned = svgEl('clipPath', { id: `clip-proj-planned-${project.id}` });
+        clipPlanned.appendChild(svgEl('rect', { x: px + 4, y: barY - 2, width: Math.max(0, pw - 8), height: barH + 4 }));
+        defs.appendChild(clipPlanned);
+
+        const plannedLabel = svgEl('text', {
+          x: px + 8, y: midY,
+          class: 'pm-gantt-project-bar-label pm-gantt-project-bar-label--planned',
+          'clip-path': `url(#clip-proj-planned-${project.id})`,
+        });
+        plannedLabel.textContent = `📅 ${project.title}`;
+        barsGroup.appendChild(plannedLabel);
+
+        attachTooltip(plannedBar);
+        attachTooltip(plannedLabel);
+
+        // Single click → open ProjectModal
+        plannedBar.addEventListener('click', (e: MouseEvent) => {
+          e.stopPropagation();
+          const oldProject = JSON.parse(JSON.stringify(project)) as Project;
+          openProjectModal(this.plugin, {
+            project,
+            onSave: async (saved) => {
+              const entries = computeProjectChangelog(oldProject, saved);
+              if (entries.length) saved.description = appendChangelogEntries(saved.description, entries);
+              await this.plugin.store.saveProject(saved);
+              await this.onRefreshAll();
+            },
+          });
+        });
+        plannedBar.addEventListener('dblclick', (e: MouseEvent) => {
+          e.stopPropagation();
+          hideGanttTooltip();
+          showGanttColorPicker(e.clientX, e.clientY, project, this.plugin, this.onRefreshAll);
+        });
       }
 
       // ── Dynamic bar (colored by ganttColor or project.color) ────────────────
@@ -418,47 +481,21 @@ export class GlobalGanttView implements SubView {
         });
         barsGroup.appendChild(projBar);
 
-        // Label inside bar (if it fits)
-        const textX = dx + 8;
-        const textY = projRowY + ROW_HEIGHT / 2 + 1;
-
-        const defs = this.svgEl.querySelector('defs') ?? (() => {
-          const d = svgEl('defs', {}); this.svgEl.prepend(d); return d;
-        })();
+        // Clip + label for dynamic bar
         const clipRect = svgEl('clipPath', { id: `clip-proj-${project.id}` });
         clipRect.appendChild(svgEl('rect', { x: dx + 2, y: barY, width: Math.max(0, dw - 4), height: barH }));
         defs.appendChild(clipRect);
 
         const textEl = svgEl('text', {
-          x: textX, y: textY,
+          x: dx + 8, y: midY,
           class: 'pm-gantt-project-bar-label',
           'clip-path': `url(#clip-proj-${project.id})`,
         });
         textEl.textContent = project.title;
         barsGroup.appendChild(textEl);
 
-        // HTML tooltip on hover
-        const makeProjectTask = () => ({
-          title: project.title,
-          status: project.status ?? '',
-          priority: project.priority ?? 'medium',
-          start: plannedStart ?? dynStart ?? '',
-          due: plannedEnd ?? dynEnd ?? '',
-          progress: 0,
-          assignees: project.teamMembers ?? [],
-          description: project.description ?? '',
-          type: 'task' as const,
-          tags: [],
-        });
-
-        projBar.addEventListener('mouseenter', (e: MouseEvent) => {
-          const t = makeProjectTask();
-          showGanttTooltip(e.clientX, e.clientY, t as unknown as Parameters<typeof showGanttTooltip>[2], project.status ?? 'project');
-        });
-        projBar.addEventListener('mousemove', (e: MouseEvent) => {
-          positionTooltipNear(e.clientX, e.clientY);
-        });
-        projBar.addEventListener('mouseleave', () => hideGanttTooltip());
+        attachTooltip(projBar);
+        attachTooltip(textEl);
 
         // Single click → open ProjectModal
         projBar.addEventListener('click', (e: MouseEvent) => {
