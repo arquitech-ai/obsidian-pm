@@ -124,6 +124,16 @@ function showGanttColorPicker(
 
 // ─── GlobalGanttView ───────────────────────────────────────────────────────
 
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function computeProjectProgress(project: Project): number {
+  const all = flattenTasks(filterArchived(project.tasks));
+  if (!all.length) return 0;
+  return Math.round(all.reduce((s, f) => s + (f.task.progress ?? 0), 0) / all.length);
+}
+
+// ─── GlobalGanttView ───────────────────────────────────────────────────────
+
 export class GlobalGanttView implements SubView {
   private granularity: GanttGranularity;
   private scrollEl!: HTMLElement;
@@ -135,6 +145,10 @@ export class GlobalGanttView implements SubView {
   private cleanupFns: (() => void)[] = [];
   /** Project IDs whose task rows are currently collapsed */
   private collapsedProjects = new Set<string>();
+  // Filters
+  private ganttStatusFilter = new Set<string>(); // empty = show all
+  private portfolioFilter = '';
+  private clientFilter = '';
 
   constructor(
     private container: HTMLElement,
@@ -148,6 +162,18 @@ export class GlobalGanttView implements SubView {
   destroy(): void {
     for (const fn of this.cleanupFns) fn();
     this.cleanupFns = [];
+  }
+
+  private getFilteredProjects(): Project[] {
+    return this.projects.filter(p => {
+      if (this.ganttStatusFilter.size > 0) {
+        const key = p.ganttColor ?? 'none';
+        if (!this.ganttStatusFilter.has(key)) return false;
+      }
+      if (this.portfolioFilter && p.portfolio !== this.portfolioFilter) return false;
+      if (this.clientFilter && p.client !== this.clientFilter) return false;
+      return true;
+    });
   }
 
   render(): void {
@@ -166,13 +192,15 @@ export class GlobalGanttView implements SubView {
     }
     this.cfg = buildTimelineConfig(allTasksForConfig, this.granularity);
 
-    this.renderControls();
-    this.renderGantt();
+    const filtered = this.getFilteredProjects();
+    this.renderControls(filtered);
+    this.renderKPISummary(filtered);
+    this.renderGantt(filtered);
   }
 
   // ─── Controls bar ──────────────────────────────────────────────────────────
 
-  private renderControls(): void {
+  private renderControls(filtered: Project[]): void {
     const bar = this.container.createDiv('pm-gantt-controls');
 
     const levels: GanttGranularity[] = ['day', 'week', 'month', 'quarter'];
@@ -194,7 +222,7 @@ export class GlobalGanttView implements SubView {
 
     bar.createEl('span', { cls: 'pm-gantt-sep' });
 
-    const allCollapsed = this.projects.length > 0 && this.projects.every(p => this.collapsedProjects.has(p.id));
+    const allCollapsed = filtered.length > 0 && filtered.every(p => this.collapsedProjects.has(p.id));
     const allExpanded  = this.collapsedProjects.size === 0;
 
     const expandBtn = bar.createEl('button', { text: 'Expand all', cls: 'pm-gantt-zoom-btn' });
@@ -211,11 +239,116 @@ export class GlobalGanttView implements SubView {
       for (const p of this.projects) this.collapsedProjects.add(p.id);
       this.render();
     });
+
+    // ── Filter bar ──────────────────────────────────────────────────────────
+    const filterBar = this.container.createDiv('pm-gantt-filter-bar');
+
+    // Status filter pills
+    filterBar.createEl('span', { text: 'Filter:', cls: 'pm-gantt-filter-label' });
+
+    const statusPills: Array<{ key: string; label: string; hex: string }> = [
+      { key: 'green',  label: '🟢 On track',    hex: GANTT_STATUS_HEX.green  },
+      { key: 'orange', label: '🟡 At risk',      hex: GANTT_STATUS_HEX.orange },
+      { key: 'red',    label: '🔴 Delayed',      hex: GANTT_STATUS_HEX.red    },
+      { key: 'grey',   label: '⚪ Not started',  hex: GANTT_STATUS_HEX.grey   },
+      { key: 'none',   label: '— No status',     hex: '#64748b'               },
+    ];
+    for (const pill of statusPills) {
+      const btn = filterBar.createEl('button', {
+        text: pill.label,
+        cls: `pm-gantt-filter-pill${this.ganttStatusFilter.has(pill.key) ? ' pm-gantt-filter-pill--active' : ''}`,
+      });
+      btn.style.setProperty('--fp-color', pill.hex);
+      btn.addEventListener('click', () => {
+        if (this.ganttStatusFilter.has(pill.key)) this.ganttStatusFilter.delete(pill.key);
+        else this.ganttStatusFilter.add(pill.key);
+        this.render();
+      });
+    }
+
+    filterBar.createEl('span', { cls: 'pm-gantt-sep' });
+
+    // Portfolio dropdown
+    const portfolios = [...new Set(this.projects.map(p => p.portfolio).filter(Boolean) as string[])].sort();
+    if (portfolios.length > 0) {
+      const sel = filterBar.createEl('select', { cls: 'pm-gantt-filter-select' });
+      sel.createEl('option', { value: '', text: 'All portfolios' });
+      for (const pf of portfolios) sel.createEl('option', { value: pf, text: pf });
+      sel.value = this.portfolioFilter;
+      sel.addEventListener('change', () => { this.portfolioFilter = sel.value; this.render(); });
+    }
+
+    // Client dropdown
+    const clients = [...new Set(this.projects.map(p => p.client).filter(Boolean) as string[])].sort();
+    if (clients.length > 0) {
+      const sel = filterBar.createEl('select', { cls: 'pm-gantt-filter-select' });
+      sel.createEl('option', { value: '', text: 'All clients' });
+      for (const cl of clients) sel.createEl('option', { value: cl, text: cl });
+      sel.value = this.clientFilter;
+      sel.addEventListener('change', () => { this.clientFilter = sel.value; this.render(); });
+    }
+
+    // Clear filters button
+    const hasFilters = this.ganttStatusFilter.size > 0 || this.portfolioFilter || this.clientFilter;
+    if (hasFilters) {
+      const clearBtn = filterBar.createEl('button', { text: '✕ Clear filters', cls: 'pm-gantt-filter-clear' });
+      clearBtn.addEventListener('click', () => {
+        this.ganttStatusFilter.clear();
+        this.portfolioFilter = '';
+        this.clientFilter = '';
+        this.render();
+      });
+    }
+  }
+
+  // ─── KPI summary ───────────────────────────────────────────────────────────
+
+  private renderKPISummary(projects: Project[]): void {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+
+    let onTrack = 0, atRisk = 0, delayed = 0, notStarted = 0, noStatus = 0, overdue = 0;
+    for (const p of projects) {
+      switch (p.ganttColor) {
+        case 'green':  onTrack++;    break;
+        case 'orange': atRisk++;     break;
+        case 'red':    delayed++;    break;
+        case 'grey':   notStarted++; break;
+        default:       noStatus++;   break;
+      }
+      const dynEnd = (() => {
+        const dates: string[] = [];
+        const collect = (tasks: Task[]) => { for (const t of tasks) { if (t.due) dates.push(t.due); collect(t.subtasks); } };
+        collect(filterArchived(p.tasks));
+        return dates.length ? dates.sort().at(-1)! : null;
+      })();
+      if (dynEnd && new Date(dynEnd) < today) overdue++;
+    }
+
+    const bar = this.container.createDiv('pm-kpi-bar');
+
+    const chip = (label: string, count: number, cls: string) => {
+      if (count === 0) return;
+      const c = bar.createEl('span', { cls: `pm-kpi-chip ${cls}` });
+      c.createEl('span', { text: String(count), cls: 'pm-kpi-chip-count' });
+      c.createEl('span', { text: ` ${label}` });
+    };
+
+    bar.createEl('span', { text: `${projects.length} projects`, cls: 'pm-kpi-total' });
+    bar.createEl('span', { cls: 'pm-gantt-sep' });
+    chip('On track',    onTrack,    'pm-kpi-chip--green');
+    chip('At risk',     atRisk,     'pm-kpi-chip--orange');
+    chip('Delayed',     delayed,    'pm-kpi-chip--red');
+    chip('Not started', notStarted, 'pm-kpi-chip--grey');
+    if (noStatus > 0) bar.createEl('span', { text: `${noStatus} unset`, cls: 'pm-kpi-unset' });
+    if (overdue > 0) {
+      bar.createEl('span', { cls: 'pm-gantt-sep' });
+      chip('overdue', overdue, 'pm-kpi-chip--overdue');
+    }
   }
 
   // ─── Main Gantt ────────────────────────────────────────────────────────────
 
-  private renderGantt(): void {
+  private renderGantt(projects: Project[]): void {
     interface Section {
       project: Project;
       tasks: Task[];
@@ -225,7 +358,7 @@ export class GlobalGanttView implements SubView {
     const sections: Section[] = [];
     let totalRows = 0;
 
-    for (const p of this.projects) {
+    for (const p of projects) {
       const tasks = filterArchived(p.tasks);
       const collapsed = this.collapsedProjects.has(p.id);
       const taskRows = collapsed ? 0 :
@@ -497,6 +630,48 @@ export class GlobalGanttView implements SubView {
         attachTooltip(projBar);
         attachTooltip(textEl);
 
+        // Progress strip at bottom of dynamic bar
+        const progress = computeProjectProgress(project);
+        if (progress > 0) {
+          const stripH = 3;
+          const stripW = Math.max(stripH * 2, (progress / 100) * (dw - 2));
+          barsGroup.appendChild(svgEl('rect', {
+            x: dx + 1, y: barY + barH - 1 - stripH,
+            width: stripW, height: stripH,
+            rx: 1.5, ry: 1.5,
+            class: 'pm-gantt-bar-progress-strip',
+            'pointer-events': 'none',
+          }));
+        }
+
+        // Overdue highlight on project bar
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        if (new Date(dynEnd) < today) {
+          projBar.classList.add('pm-gantt-bar--overdue');
+        }
+
+        // Slack indicator — gap between planned end and dynamic end
+        if (plannedEnd && dynEnd && plannedEnd !== dynEnd) {
+          const peDate = new Date(plannedEnd); peDate.setDate(peDate.getDate() + 1);
+          const deDate = new Date(dynEnd);     deDate.setDate(deDate.getDate() + 1);
+          const peX = dateToX(this.cfg, peDate);
+          const deX = dateToX(this.cfg, deDate);
+          const slackY = barY + barH - 4;
+          if (deX < peX) {
+            // Dynamic ends before planned → green buffer (ahead of schedule)
+            barsGroup.appendChild(svgEl('rect', {
+              x: deX, y: slackY, width: peX - deX, height: 4,
+              rx: 2, class: 'pm-gantt-slack-pos', 'pointer-events': 'none',
+            }));
+          } else {
+            // Dynamic ends after planned → red overrun
+            barsGroup.appendChild(svgEl('rect', {
+              x: peX, y: slackY, width: deX - peX, height: 4,
+              rx: 2, class: 'pm-gantt-slack-neg', 'pointer-events': 'none',
+            }));
+          }
+        }
+
         // Single click → open ProjectModal
         projBar.addEventListener('click', (e: MouseEvent) => {
           e.stopPropagation();
@@ -504,7 +679,6 @@ export class GlobalGanttView implements SubView {
           openProjectModal(this.plugin, {
             project,
             onSave: async (saved) => {
-              // Apply changelog for project-level field changes
               const entries = computeProjectChangelog(oldProject, saved);
               if (entries.length) saved.description = appendChangelogEntries(saved.description, entries);
               await this.plugin.store.saveProject(saved);

@@ -3302,6 +3302,129 @@ body.pm-resize-active, body.pm-resize-active * { cursor: col-resize !important; 
   opacity: 0.9;
 }
 
+/* ─── Progress strip (task + project bars) ───────────────────────────────── */
+.pm-gantt-bar-progress-strip {
+  fill: rgba(255, 255, 255, 0.65);
+  pointer-events: none;
+}
+
+/* ─── Overdue highlight ──────────────────────────────────────────────────── */
+@keyframes pm-overdue-pulse {
+  0%, 100% { stroke-opacity: 1; }
+  50%       { stroke-opacity: 0.2; }
+}
+.pm-gantt-bar--overdue {
+  stroke: #ef4444 !important;
+  stroke-width: 2.5 !important;
+  animation: pm-overdue-pulse 1.8s ease-in-out infinite;
+}
+
+/* ─── Slack indicator ────────────────────────────────────────────────────── */
+.pm-gantt-slack-pos {
+  fill: #22c55e;
+  opacity: 0.45;
+}
+.pm-gantt-slack-neg {
+  fill: #ef4444;
+  opacity: 0.45;
+}
+
+/* ─── KPI summary bar ────────────────────────────────────────────────────── */
+.pm-kpi-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.pm-kpi-total {
+  font-weight: 600;
+  color: var(--text-normal);
+}
+.pm-kpi-unset {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.pm-kpi-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.pm-kpi-chip-count {
+  font-size: 12px;
+  font-weight: 700;
+}
+.pm-kpi-chip--green   { background: #166534; color: #86efac; }
+.pm-kpi-chip--orange  { background: #713f12; color: #fde68a; }
+.pm-kpi-chip--red     { background: #7f1d1d; color: #fca5a5; }
+.pm-kpi-chip--grey    { background: #1e293b; color: #cbd5e1; }
+.pm-kpi-chip--overdue { background: #7f1d1d; color: #fca5a5; border: 1px solid #ef4444; }
+
+/* ─── Filter bar ─────────────────────────────────────────────────────────── */
+.pm-gantt-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-wrap: wrap;
+  background: var(--background-primary);
+}
+.pm-gantt-filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.pm-gantt-filter-pill {
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  cursor: pointer;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+}
+.pm-gantt-filter-pill:hover {
+  border-color: var(--color-accent, #7c3aed);
+  color: var(--text-normal);
+}
+.pm-gantt-filter-pill--active {
+  background: color-mix(in srgb, var(--fp-color, #7c3aed) 20%, transparent);
+  border-color: var(--fp-color, #7c3aed);
+  color: var(--text-normal);
+  font-weight: 600;
+}
+.pm-gantt-filter-select {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  cursor: pointer;
+}
+.pm-gantt-filter-clear {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  background: transparent;
+  cursor: pointer;
+}
+.pm-gantt-filter-clear:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
 /* ─── HTML tooltip ───────────────────────────────────────────────────────── */
 .pm-gantt-tooltip {
   position: fixed;

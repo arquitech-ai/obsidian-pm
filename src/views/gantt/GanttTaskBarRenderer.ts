@@ -172,14 +172,24 @@ export function renderTaskBar(g: SVGGElement, task: Task, row: number, _depth: n
   });
   barGroup.appendChild(rect);
 
-  // Progress overlay
-  if (task.progress > 0 && task.progress < 100) {
-    const pw = (task.progress / 100) * width;
+  // Progress strip at bottom of bar
+  if (task.progress > 0) {
+    const stripH = 3;
+    const pw = Math.max(stripH * 2, (task.progress / 100) * width);
     barGroup.appendChild(svgEl('rect', {
-      x, y, width: pw, height,
-      rx: BAR_BORDER_RADIUS, ry: BAR_BORDER_RADIUS,
-      fill: color, opacity: 0.35, class: 'pm-gantt-bar-progress',
+      x, y: y + height - stripH,
+      width: pw, height: stripH,
+      rx: 1.5, ry: 1.5,
+      class: 'pm-gantt-bar-progress-strip',
+      'pointer-events': 'none',
     }));
+  }
+
+  // Overdue highlight
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isDone = ctx.plugin.settings.statuses.find(s => s.id === task.status)?.complete === true;
+  if (endDate && endDate < today && !isDone) {
+    rect.classList.add('pm-gantt-bar--overdue');
   }
 
   // Subtask stripe
